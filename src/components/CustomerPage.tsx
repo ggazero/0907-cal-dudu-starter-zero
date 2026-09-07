@@ -5,13 +5,14 @@ import { OperationManager } from '../utils/operations';
 import { DatabaseManager } from '../utils/database';
 import { decideRequestStatus } from '../utils/decide';
 import { TIME_SLOTS } from '../utils/constants';
+import { getSupabase, getCurrentUserId } from '../utils/supabase';
 
 interface CustomerPageProps {
   db: DatabaseManager;
   mode: 'local' | 'supabase';
 }
 
-export const CustomerPage: React.FC<CustomerPageProps> = ({ db }) => {
+export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
   const [customerId, setCustomerId] = useState<string>('C01');
   const [stage, setStage] = useState<'select' | 'confirm' | 'view' | 'reselect'>('select');
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
@@ -22,35 +23,101 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db }) => {
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [supabaseReady, setSupabaseReady] = useState(false);
 
-  const om = new OperationManager(db);
+  const om = new OperationManager(db, mode);
+
+  // Supabase 모드 초기화
+  useEffect(() => {
+    if (mode === 'supabase') {
+      initializeSupabase();
+    }
+  }, [mode]);
+
+  const initializeSupabase = async () => {
+    try {
+      getSupabase();
+      const userId = await getCurrentUserId();
+      if (userId) {
+        setCustomerId(userId);
+        setSupabaseReady(true);
+      } else {
+        setError('Supabase 인증 필요: 로그인해주세요');
+      }
+    } catch (err) {
+      setError(`Supabase 초기화 오류: ${String(err)}`);
+    }
+  };
 
   // 초기 로드
   useEffect(() => {
+    if (mode === 'supabase' && !supabaseReady) return;
     loadData();
-  }, [customerId]);
+  }, [customerId, mode, supabaseReady]);
 
-  const loadData = () => {
-    const state = db.getState();
-    setSlots(state.slots);
-    const status = om.getCustomerStatus(customerId);
-    setCustomerRequests(status);
-    setError('');
-    setSuccess('');
+  const loadData = async () => {
+    try {
+      setError('');
+      setSuccess('');
 
-    // 첫 로드인지 확인
-    if (status.length === 0) {
-      setStage('select');
-      setSelectedSlots([]);
-    } else {
-      const latest = status[status.length - 1];
-      if (latest.request.status === 'needs_reselection') {
-        setStage('reselect');
-      } else if (latest.request.status === 'confirmed') {
-        setStage('view');
+      if (mode === 'supabase') {
+        const { data: slotsData, error: slotError } = await getSupabase()
+          .from('slots')
+          .select('*');
+
+        if (slotError) throw slotError;
+
+        const slotsRecord: Record<string, Slot> = {};
+        (slotsData || []).forEach((s: any) => {
+          slotsRecord[s.id] = {
+            id: s.id,
+            date: s.date,
+            timeLabel: s.time_label,
+            status: s.status,
+            confirmedAt: s.confirmed_at,
+            confirmedBy: s.confirmed_by,
+          };
+        });
+        setSlots(slotsRecord);
+
+        const status = await om.getCustomerStatusSupabase(customerId);
+        setCustomerRequests(status);
+
+        if (status.length === 0) {
+          setStage('select');
+          setSelectedSlots([]);
+        } else {
+          const latest = status[status.length - 1];
+          if (latest.request.status === 'needs_reselection') {
+            setStage('reselect');
+          } else if (latest.request.status === 'confirmed') {
+            setStage('view');
+          } else {
+            setStage('view');
+          }
+        }
       } else {
-        setStage('view');
+        const state = db.getState();
+        setSlots(state.slots);
+        const status = om.getCustomerStatus(customerId);
+        setCustomerRequests(status);
+
+        if (status.length === 0) {
+          setStage('select');
+          setSelectedSlots([]);
+        } else {
+          const latest = status[status.length - 1];
+          if (latest.request.status === 'needs_reselection') {
+            setStage('reselect');
+          } else if (latest.request.status === 'confirmed') {
+            setStage('view');
+          } else {
+            setStage('view');
+          }
+        }
       }
+    } catch (err) {
+      setError(`데이터 로드 오류: ${String(err)}`);
     }
   };
 

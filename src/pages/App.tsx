@@ -1,16 +1,53 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CustomerPage } from '../components/CustomerPage';
 import { AdminPage } from '../components/AdminPage';
 import { DatabaseManager } from '../utils/database';
 import { REFERENCE_TIME } from '../utils/constants';
+import { initSupabase, isAdmin } from '../utils/supabase';
 
 type Mode = 'local' | 'supabase';
 type Role = 'customer' | 'admin';
 
 const App: React.FC = () => {
-  const [mode] = useState<Mode>('local');
+  const [mode, setMode] = useState<Mode>('local');
   const [role, setRole] = useState<Role>('customer');
   const [db] = useState(() => new DatabaseManager());
+  const [supabaseError, setSupabaseError] = useState<string>('');
+  const [isAdminUser, setIsAdminUser] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Supabase 모드로 전환 시 관리자 권한 확인
+    if (mode === 'supabase') {
+      checkAdminStatus();
+    }
+  }, [mode]);
+
+  const checkAdminStatus = async () => {
+    try {
+      setLoading(true);
+      initSupabase();
+      const admin = await isAdmin();
+      setIsAdminUser(admin);
+      setSupabaseError('');
+    } catch (error) {
+      setSupabaseError(`Supabase 연결 오류: ${String(error)}`);
+      setMode('local');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleModeChange = (newMode: Mode) => {
+    if (newMode === 'supabase') {
+      setSupabaseError('');
+      checkAdminStatus();
+      setMode(newMode);
+    } else {
+      setMode(newMode);
+      setSupabaseError('');
+    }
+  };
 
   const handleRoleChange = (newRole: Role) => {
     setRole(newRole);
@@ -35,33 +72,60 @@ const App: React.FC = () => {
 
         <div className="role-selector">
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <span style={{ fontWeight: 'bold', fontSize: '14px' }}>역할</span>
+            <span style={{ fontWeight: 'bold', fontSize: '14px' }}>모드</span>
             <button
-              className={`btn ${role === 'customer' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => handleRoleChange('customer')}
+              className={`btn ${mode === 'local' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => handleModeChange('local')}
+              disabled={loading}
               style={{ padding: '8px 16px', fontSize: '14px' }}
             >
-              고객
+              {loading && mode === 'supabase' ? '연결 중...' : '로컬'}
             </button>
             <button
-              className={`btn ${role === 'admin' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => handleRoleChange('admin')}
+              className={`btn ${mode === 'supabase' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => handleModeChange('supabase')}
+              disabled={loading}
               style={{ padding: '8px 16px', fontSize: '14px' }}
             >
-              어드민
+              {loading && mode !== 'supabase' ? '연결 중...' : 'Supabase'}
             </button>
           </div>
 
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginLeft: '20px' }}>
-            <span className={`mode-badge ${mode}`}>{mode === 'local' ? '로컬 모드' : 'Supabase 모드'}</span>
+            <span style={{ fontWeight: 'bold', fontSize: '14px' }}>역할</span>
+            {mode === 'local' ? (
+              <>
+                <button
+                  className={`btn ${role === 'customer' ? 'btn-primary' : 'btn-secondary'}`}
+                  onClick={() => handleRoleChange('customer')}
+                  style={{ padding: '8px 16px', fontSize: '14px' }}
+                >
+                  고객
+                </button>
+                <button
+                  className={`btn ${role === 'admin' ? 'btn-primary' : 'btn-secondary'}`}
+                  onClick={() => handleRoleChange('admin')}
+                  style={{ padding: '8px 16px', fontSize: '14px' }}
+                >
+                  어드민
+                </button>
+              </>
+            ) : (
+              <span style={{ fontSize: '14px', color: '#666' }}>
+                {isAdminUser ? '어드민' : '고객'} (Supabase 인증)
+              </span>
+            )}
+          </div>
+
+          {mode === 'local' && (
             <button
               className="btn btn-secondary"
               onClick={handleResetData}
-              style={{ padding: '6px 12px', fontSize: '12px' }}
+              style={{ padding: '6px 12px', fontSize: '12px', marginLeft: '20px' }}
             >
               데이터 초기화
             </button>
-          </div>
+          )}
         </div>
       </div>
 
@@ -72,15 +136,22 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {mode === 'supabase' && (
-        <div className="alert alert-warning">
-          <strong>Supabase 모드:</strong> 실제 데이터베이스와 인증이 적용됩니다. 환경 변수 설정 필요합니다.
-          (미구현 - 현재 로컬 모드만 지원)
+      {mode === 'supabase' && supabaseError && (
+        <div className="alert alert-error">
+          <strong>Supabase 오류:</strong> {supabaseError}
+        </div>
+      )}
+
+      {mode === 'supabase' && !supabaseError && (
+        <div className="alert alert-info">
+          <strong>Supabase 모드:</strong> 실제 데이터베이스와 인증이 적용됩니다.
+          {isAdminUser ? ' (어드민 권한 확인됨)' : ' (고객 권한)'}
         </div>
       )}
 
       {role === 'customer' && <CustomerPage db={db} mode={mode} />}
-      {role === 'admin' && <AdminPage db={db} mode={mode} />}
+      {role === 'admin' && mode === 'local' && <AdminPage db={db} mode={mode} />}
+      {mode === 'supabase' && isAdminUser && <AdminPage db={db} mode={mode} />}
 
       <hr style={{ margin: '40px 0', borderColor: '#ddd' }} />
       <div style={{ fontSize: '12px', color: '#666', textAlign: 'center', paddingBottom: '20px' }}>

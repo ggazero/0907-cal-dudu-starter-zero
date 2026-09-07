@@ -4,14 +4,15 @@ import type { Slot, Request, Candidate, OperationLog } from '../types';
 import { OperationManager } from '../utils/operations';
 import { DatabaseManager } from '../utils/database';
 import { TIME_SLOTS } from '../utils/constants';
+import { getSupabase, getCurrentUserId } from '../utils/supabase';
 
 interface AdminPageProps {
   db: DatabaseManager;
   mode: 'local' | 'supabase';
 }
 
-export const AdminPage: React.FC<AdminPageProps> = ({ db }) => {
-  const [adminId] = useState<string>('ADMIN001');
+export const AdminPage: React.FC<AdminPageProps> = ({ db, mode }) => {
+  const [adminId, setAdminId] = useState<string>('ADMIN001');
   const [slots, setSlots] = useState<Record<string, Slot>>({});
   const [requests, setRequests] = useState<
     Array<{ request: Request; candidates: Candidate[]; decision: any }>
@@ -23,20 +24,84 @@ export const AdminPage: React.FC<AdminPageProps> = ({ db }) => {
   const [success, setSuccess] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
-  const om = new OperationManager(db);
+  const om = new OperationManager(db, mode);
 
   // 초기 로드
   useEffect(() => {
-    loadData();
-  }, []);
+    initializeAdmin();
+  }, [mode]);
 
-  const loadData = () => {
-    const state = db.getState();
-    setSlots(state.slots);
-    setRequests(om.getAdminRequests());
-    setLogs(state.logs || []);
-    setError('');
-    setSuccess('');
+  const initializeAdmin = async () => {
+    try {
+      if (mode === 'supabase') {
+        const userId = await getCurrentUserId();
+        if (userId) {
+          setAdminId(userId);
+        }
+      }
+      loadData();
+    } catch (err) {
+      setError(`어드민 초기화 오류: ${String(err)}`);
+    }
+  };
+
+  const loadData = async () => {
+    try {
+      setError('');
+      setSuccess('');
+
+      if (mode === 'supabase') {
+        const client = getSupabase();
+        const { data: slotsData, error: slotError } = await client
+          .from('slots')
+          .select('*');
+
+        if (slotError) throw slotError;
+
+        const slotsRecord: Record<string, Slot> = {};
+        (slotsData || []).forEach((s: any) => {
+          slotsRecord[s.id] = {
+            id: s.id,
+            date: s.date,
+            timeLabel: s.time_label,
+            status: s.status,
+            confirmedAt: s.confirmed_at,
+            confirmedBy: s.confirmed_by,
+          };
+        });
+        setSlots(slotsRecord);
+
+        const adminRequests = await om.getAdminRequestsSupabase();
+        setRequests(adminRequests);
+
+        const { data: logsData, error: logsError } = await client
+          .from('operation_logs')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(100);
+
+        if (logsError) throw logsError;
+
+        const operationLogs: OperationLog[] = (logsData || []).map((log: any) => ({
+          id: log.id,
+          timestamp: log.created_at,
+          action: log.action,
+          requestId: log.request_id || '',
+          adminId: log.admin_id,
+          slotId: log.slot_id,
+          status: log.status,
+          error: log.error_message,
+        }));
+        setLogs(operationLogs);
+      } else {
+        const state = db.getState();
+        setSlots(state.slots);
+        setRequests(om.getAdminRequests());
+        setLogs(state.logs || []);
+      }
+    } catch (err) {
+      setError(`데이터 로드 오류: ${String(err)}`);
+    }
   };
 
   const handleConfirm = async () => {
