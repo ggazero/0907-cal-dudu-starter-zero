@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { CustomerPage } from '../components/CustomerPage';
 import { AdminPage } from '../components/AdminPage';
+import { LoginPage } from '../components/LoginPage';
 import { DatabaseManager } from '../utils/database';
 import { REFERENCE_TIME } from '../utils/constants';
-import { initSupabase, isAdmin } from '../utils/supabase';
+import { initSupabase, isAdmin, signOut } from '../utils/supabase';
 
 type Mode = 'local' | 'supabase';
 type Role = 'customer' | 'admin';
@@ -15,6 +16,7 @@ const App: React.FC = () => {
   const [supabaseError, setSupabaseError] = useState<string>('');
   const [isAdminUser, setIsAdminUser] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isSupabaseLoggedIn, setIsSupabaseLoggedIn] = useState(false);
 
   useEffect(() => {
     // Supabase 모드로 전환 시 관리자 권한 확인
@@ -29,10 +31,45 @@ const App: React.FC = () => {
       initSupabase();
       const admin = await isAdmin();
       setIsAdminUser(admin);
+      setIsSupabaseLoggedIn(true);
       setSupabaseError('');
     } catch (error) {
-      setSupabaseError(`Supabase 연결 오류: ${String(error)}`);
-      setMode('local');
+      // 로그인되지 않은 상태일 수 있으므로 에러로 처리하지 않음
+      setIsSupabaseLoggedIn(false);
+      setIsAdminUser(false);
+      setSupabaseError('');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      setIsSupabaseLoggedIn(false);
+      setIsAdminUser(false);
+      setSupabaseError('');
+    } catch (error) {
+      setSupabaseError(`로그아웃 오류: ${String(error)}`);
+    }
+  };
+
+  const handleLoginSuccess = async () => {
+    try {
+      setLoading(true);
+      initSupabase();
+
+      // 로그인 상태 명시적 설정
+      setIsSupabaseLoggedIn(true);
+
+      // 관리자 권한 확인
+      const admin = await isAdmin();
+      setIsAdminUser(admin);
+      setSupabaseError('');
+    } catch (error) {
+      setSupabaseError(`로그인 후 권한 확인 오류: ${String(error)}`);
+      setIsSupabaseLoggedIn(false);
+      setIsAdminUser(false);
     } finally {
       setLoading(false);
     }
@@ -41,11 +78,12 @@ const App: React.FC = () => {
   const handleModeChange = (newMode: Mode) => {
     if (newMode === 'supabase') {
       setSupabaseError('');
-      checkAdminStatus();
       setMode(newMode);
     } else {
       setMode(newMode);
       setSupabaseError('');
+      setIsSupabaseLoggedIn(false);
+      setIsAdminUser(false);
     }
   };
 
@@ -142,16 +180,26 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {mode === 'supabase' && !supabaseError && (
+      {mode === 'supabase' && !supabaseError && isSupabaseLoggedIn && (
         <div className="alert alert-info">
           <strong>Supabase 모드:</strong> 실제 데이터베이스와 인증이 적용됩니다.
           {isAdminUser ? ' (어드민 권한 확인됨)' : ' (고객 권한)'}
+          <button
+            className="btn btn-secondary"
+            onClick={handleLogout}
+            style={{ marginLeft: '20px', padding: '6px 12px', fontSize: '12px' }}
+          >
+            로그아웃
+          </button>
         </div>
       )}
 
-      {role === 'customer' && <CustomerPage db={db} mode={mode} />}
-      {role === 'admin' && mode === 'local' && <AdminPage db={db} mode={mode} />}
-      {mode === 'supabase' && isAdminUser && <AdminPage db={db} mode={mode} />}
+      {mode === 'supabase' && !isSupabaseLoggedIn && <LoginPage onLoginSuccess={handleLoginSuccess} />}
+
+      {mode === 'local' && role === 'customer' && <CustomerPage db={db} mode={mode} />}
+      {mode === 'local' && role === 'admin' && <AdminPage db={db} mode={mode} />}
+      {mode === 'supabase' && isSupabaseLoggedIn && !isAdminUser && <CustomerPage db={db} mode={mode} />}
+      {mode === 'supabase' && isSupabaseLoggedIn && isAdminUser && <AdminPage db={db} mode={mode} />}
 
       <hr style={{ margin: '40px 0', borderColor: '#ddd' }} />
       <div style={{ fontSize: '12px', color: '#666', textAlign: 'center', paddingBottom: '20px' }}>

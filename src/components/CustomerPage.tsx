@@ -36,15 +36,22 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
 
   const initializeSupabase = async () => {
     try {
+      setError('');
       getSupabase();
+
+      // 현재 사용자 ID 획득 (session 또는 user에서)
       const userId = await getCurrentUserId();
       if (userId) {
         setCustomerId(userId);
         setSupabaseReady(true);
+        setError('');
       } else {
-        setError('Supabase 인증 필요: 로그인해주세요');
+        // 로그인되지 않음
+        setSupabaseReady(false);
+        setError('');
       }
     } catch (err) {
+      setSupabaseReady(false);
       setError(`Supabase 초기화 오류: ${String(err)}`);
     }
   };
@@ -222,16 +229,29 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
 
   return (
     <div className="customer-page">
-      <div className="form-group">
-        <label>고객 코드</label>
-        <input
-          type="text"
-          value={customerId}
-          onChange={e => setCustomerId(e.target.value)}
-          placeholder="C01"
-          disabled={stage === 'confirm'}
-        />
-      </div>
+      {mode === 'local' && (
+        <div className="form-group">
+          <label>고객 코드</label>
+          <input
+            type="text"
+            value={customerId}
+            onChange={e => setCustomerId(e.target.value)}
+            placeholder="C01"
+            disabled={stage === 'confirm'}
+          />
+        </div>
+      )}
+      {mode === 'supabase' && (
+        <div className="form-group">
+          <label>사용자 ID (Supabase 인증)</label>
+          <input
+            type="text"
+            value={customerId}
+            disabled
+            placeholder="자동 로드됨"
+          />
+        </div>
+      )}
 
       {error && <div className="alert alert-error">{error}</div>}
       {success && <div className="alert alert-success">{success}</div>}

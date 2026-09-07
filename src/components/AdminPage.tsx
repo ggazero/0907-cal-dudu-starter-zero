@@ -37,6 +37,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({ db, mode }) => {
         const userId = await getCurrentUserId();
         if (userId) {
           setAdminId(userId);
+        } else {
+          setError('Supabase 인증 필요: 로그인 페이지에서 로그인하세요');
+          return;
         }
       }
       loadData();
