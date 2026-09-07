@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { signIn, signUp } from '../utils/supabase';
 
 interface LoginPageProps {
+  role: 'customer' | 'admin';
   onLoginSuccess: () => void;
 }
 
-export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
+export const LoginPage: React.FC<LoginPageProps> = ({ role, onLoginSuccess }) => {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [error, setError] = useState<string>('');
@@ -14,21 +15,27 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    await login(email, password);
+  };
+
+  const login = async (selectedEmail: string, selectedPassword: string, quick = false) => {
+    setEmail(selectedEmail);
+    setPassword(selectedPassword);
     setError('');
     setLoading(true);
 
     try {
-      if (!email || !password) {
-        setError('이메일과 비밀번호를 입력하세요');
+      if (!selectedEmail || !selectedPassword) {
+        setError(quick ? '이 테스트 계정의 빠른 로그인 비밀번호가 설정되지 않았습니다.' : '이메일과 비밀번호를 입력하세요');
         setLoading(false);
         return;
       }
 
       let result;
-      if (isSignUp) {
-        result = await signUp(email, password);
+      if (isSignUp && !quick) {
+        result = await signUp(selectedEmail, selectedPassword);
       } else {
-        result = await signIn(email, password);
+        result = await signIn(selectedEmail, selectedPassword);
       }
 
       if (result.error) {
@@ -52,15 +59,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
       <div style={{ background: 'white', padding: '30px', borderRadius: '4px', border: '1px solid #ddd' }}>
         <h3 style={{ marginBottom: '20px', textAlign: 'center' }}>
-          {isSignUp ? 'Supabase 회원가입' : 'Supabase 로그인'}
+          {isSignUp ? 'Supabase 회원가입' : role === 'admin' ? 'Supabase 관리자 로그인' : 'Supabase 고객 로그인'}
         </h3>
 
         {error && <div className="alert alert-error" style={{ marginBottom: '15px' }}>{error}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>이메일</label>
+            <label htmlFor="login-email">이메일</label>
             <input
+              id="login-email"
+              autoComplete="username"
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
@@ -71,8 +80,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
           </div>
 
           <div className="form-group">
-            <label>비밀번호</label>
+            <label htmlFor="login-password">비밀번호</label>
             <input
+              id="login-password"
+              autoComplete={isSignUp ? "new-password" : "current-password"}
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
@@ -106,18 +117,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
           </button>
         </div>
 
-        <div style={{ fontSize: '12px', color: '#666', marginTop: '30px', padding: '15px', background: '#f0f8ff', borderRadius: '4px', border: '1px solid #d4e6f1' }}>
-          <p style={{ margin: '0 0 10px 0' }}><strong>📌 데모 테스트 계정</strong></p>
-          <div style={{ background: 'white', padding: '10px', borderRadius: '3px', marginBottom: '10px', fontFamily: 'monospace' }}>
-            <p style={{ margin: '0 0 6px 0' }}>고객1: <code style={{ background: '#f0f0f0', padding: '2px 4px' }}>user1@test.com</code></p>
-            <p style={{ margin: '0 0 6px 0' }}>고객2: <code style={{ background: '#f0f0f0', padding: '2px 4px' }}>user2@test.com</code></p>
-            <p style={{ margin: '0' }}>관리자: <code style={{ background: '#f0f0f0', padding: '2px 4px' }}>admin@test.com</code></p>
-          </div>
-          <p style={{ margin: '0 0 8px 0' }}><strong>계정 설정 방법:</strong></p>
-          <ol style={{ margin: '0', paddingLeft: '16px', fontSize: '11px' }}>
-            <li>위의 테스트 계정 이메일과 임의의 비밀번호를 입력하여 회원가입</li>
-            <li>관리자 계정은 Supabase 대시보드에서 app_metadata.role을 'admin'으로 설정</li>
-          </ol>
+        <div style={{ marginTop: '20px' }}>
+          {(role === 'admin'
+            ? [{ label: '관리자', email: 'admin@test.com', password: (import.meta as any).env.VITE_TEST_ADMIN_PASSWORD || '' }]
+            : [{ label: 'C01', email: 'user1@test.com', password: (import.meta as any).env.VITE_TEST_C01_PASSWORD || '' }, { label: 'C02', email: 'user2@test.com', password: (import.meta as any).env.VITE_TEST_C02_PASSWORD || '' }]
+          ).map(account => (
+            <button key={account.label} type="button" className="btn btn-secondary"
+              disabled={loading} onClick={() => { setIsSignUp(false); void login(account.email, account.password, true); }}>
+              {account.label} 빠른 로그인
+            </button>
+          ))}
+          <p>빠른 로그인은 수업용 테스트 계정입니다.</p>
         </div>
       </div>
     </div>

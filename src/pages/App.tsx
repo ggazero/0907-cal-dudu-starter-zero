@@ -4,13 +4,45 @@ import { AdminPage } from '../components/AdminPage';
 import { LoginPage } from '../components/LoginPage';
 import { DatabaseManager } from '../utils/database';
 import { REFERENCE_TIME } from '../utils/constants';
-import { initSupabase, isAdmin, signOut } from '../utils/supabase';
+import { initSupabase, signOut } from '../utils/supabase';
 
 type Mode = 'local' | 'supabase';
 type Role = 'customer' | 'admin';
 
-const App: React.FC = () => {
-  const [mode, setMode] = useState<Mode>('local');
+const EntryPage: React.FC = () => (
+  <div className="container">
+    <div className="header">
+      <h1>cal.dudu-works.com</h1>
+      <div className="role-selector">
+        <a className="btn btn-secondary" href="/service_blueprint_asis.html" target="_blank" rel="noopener noreferrer">📋 AS-IS</a>
+        <a className="btn btn-secondary" href="/service_blueprint_tobe.html" target="_blank" rel="noopener noreferrer">🎯 TO-BE</a>
+      </div>
+    </div>
+    <main>
+      <h2>서비스 진입 선택</h2>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px' }}>
+        <section aria-labelledby="local-mode-title" style={{ flex: '1 1 260px', border: '1px solid #ddd', padding: '24px' }}>
+          <h3 id="local-mode-title">로컬 모드</h3>
+          <p>수업용 로컬 데모</p>
+          <a className="btn btn-primary" href="/local">로컬 모드 시작</a>
+        </section>
+        <section aria-labelledby="supabase-mode-title" style={{ flex: '1 1 260px', border: '1px solid #ddd', padding: '24px' }}>
+          <h3 id="supabase-mode-title">Supabase 모드</h3>
+          <p>실제 Supabase DB/Auth 사용</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+            <a className="btn btn-primary" href="/customer">고객 로그인</a>
+            <a className="btn btn-secondary" href="/admin">관리자 로그인</a>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+);
+
+const BookingApp: React.FC = () => {
+  const localEntry = window.location.pathname === '/local';
+  const adminEntry = /^\/admin\/?$/.test(window.location.pathname);
+  const [mode, setMode] = useState<Mode>(localEntry ? 'local' : 'supabase');
   const [role, setRole] = useState<Role>('customer');
   const [db] = useState(() => new DatabaseManager());
   const [supabaseError, setSupabaseError] = useState<string>('');
@@ -19,33 +51,46 @@ const App: React.FC = () => {
   const [isSupabaseLoggedIn, setIsSupabaseLoggedIn] = useState(false);
 
   useEffect(() => {
-    // Supabase 모드로 전환 시 관리자 권한 확인
-    if (mode === 'supabase') {
-      checkAdminStatus();
-    }
-  }, [mode]);
-
-  const checkAdminStatus = async () => {
+    if (mode !== 'supabase') return;
+    let active = true;
+    let unsubscribe: (() => void) | undefined;
+    setLoading(true);
     try {
-      setLoading(true);
-      initSupabase();
-      const admin = await isAdmin();
-      setIsAdminUser(admin);
-      setIsSupabaseLoggedIn(true);
-      setSupabaseError('');
+      const client = initSupabase();
+      const { data } = client.auth.onAuthStateChange((_event, session) => {
+        if (!active) return;
+        setIsSupabaseLoggedIn(Boolean(session?.user));
+        setIsAdminUser(session?.user.app_metadata?.role === 'admin');
+        setLoading(false);
+      });
+      unsubscribe = () => data.subscription.unsubscribe();
+      client.auth.getSession().then(({ data, error }) => {
+        if (!active) return;
+        if (error) {
+          setSupabaseError(error.message);
+          setIsSupabaseLoggedIn(false);
+          setIsAdminUser(false);
+        } else {
+          setIsSupabaseLoggedIn(Boolean(data.session?.user));
+          setIsAdminUser(data.session?.user.app_metadata?.role === 'admin');
+        }
+        setLoading(false);
+      }).catch(error => {
+        if (!active) return;
+        setSupabaseError(String(error));
+        setLoading(false);
+      });
     } catch (error) {
-      // 로그인되지 않은 상태일 수 있으므로 에러로 처리하지 않음
-      setIsSupabaseLoggedIn(false);
-      setIsAdminUser(false);
-      setSupabaseError('');
-    } finally {
+      setSupabaseError(String(error));
       setLoading(false);
     }
-  };
+    return () => { active = false; unsubscribe?.(); };
+  }, [mode]);
 
   const handleLogout = async () => {
     try {
-      await signOut();
+      const result = await signOut();
+      if (result.error) throw new Error(result.error);
       setIsSupabaseLoggedIn(false);
       setIsAdminUser(false);
       setSupabaseError('');
@@ -54,25 +99,8 @@ const App: React.FC = () => {
     }
   };
 
-  const handleLoginSuccess = async () => {
-    try {
-      setLoading(true);
-      initSupabase();
-
-      // 로그인 상태 명시적 설정
-      setIsSupabaseLoggedIn(true);
-
-      // 관리자 권한 확인
-      const admin = await isAdmin();
-      setIsAdminUser(admin);
-      setSupabaseError('');
-    } catch (error) {
-      setSupabaseError(`로그인 후 권한 확인 오류: ${String(error)}`);
-      setIsSupabaseLoggedIn(false);
-      setIsAdminUser(false);
-    } finally {
-      setLoading(false);
-    }
+  const handleLoginSuccess = () => {
+    setSupabaseError('');
   };
 
   const handleModeChange = (newMode: Mode) => {
@@ -110,7 +138,7 @@ const App: React.FC = () => {
         </div>
 
         <div className="role-selector">
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          {localEntry && <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             <span style={{ fontWeight: 'bold', fontSize: '14px' }}>모드</span>
             <button
               className={`btn ${mode === 'local' ? 'btn-primary' : 'btn-secondary'}`}
@@ -128,7 +156,11 @@ const App: React.FC = () => {
             >
               {loading && mode !== 'supabase' ? '연결 중...' : 'Supabase'}
             </button>
-          </div>
+          </div>}
+
+          <a className="btn btn-secondary" href={adminEntry ? '/customer' : '/admin'}>
+            {adminEntry ? '고객 페이지로 이동' : '관리자 페이지로 이동'}
+          </a>
 
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginLeft: '20px' }}>
             <span style={{ fontWeight: 'bold', fontSize: '14px' }}>역할</span>
@@ -215,12 +247,18 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {mode === 'supabase' && !isSupabaseLoggedIn && <LoginPage onLoginSuccess={handleLoginSuccess} />}
+      {mode === 'supabase' && loading && <p role="status">로그인 상태 확인 중...</p>}
+      {mode === 'supabase' && !loading && !supabaseError && !isSupabaseLoggedIn && (
+        <LoginPage role={adminEntry ? 'admin' : 'customer'} onLoginSuccess={handleLoginSuccess} />
+      )}
+      {mode === 'supabase' && !loading && isSupabaseLoggedIn && adminEntry && !isAdminUser && (
+        <div className="alert alert-error" role="alert">관리자 권한이 필요합니다. 로그아웃 후 관리자 계정으로 로그인하세요.</div>
+      )}
 
       {mode === 'local' && role === 'customer' && <CustomerPage db={db} mode={mode} />}
       {mode === 'local' && role === 'admin' && <AdminPage db={db} mode={mode} />}
-      {mode === 'supabase' && isSupabaseLoggedIn && !isAdminUser && <CustomerPage db={db} mode={mode} />}
-      {mode === 'supabase' && isSupabaseLoggedIn && isAdminUser && <AdminPage db={db} mode={mode} />}
+      {mode === 'supabase' && !loading && !supabaseError && isSupabaseLoggedIn && !adminEntry && <CustomerPage db={db} mode={mode} />}
+      {mode === 'supabase' && !loading && !supabaseError && isSupabaseLoggedIn && adminEntry && isAdminUser && <AdminPage db={db} mode={mode} />}
 
       <hr style={{ margin: '40px 0', borderColor: '#ddd' }} />
       <div style={{ fontSize: '12px', color: '#666', textAlign: 'center', paddingBottom: '20px' }}>
@@ -230,5 +268,8 @@ const App: React.FC = () => {
     </div>
   );
 };
+
+// 주소 경로로 진입 화면을 결정하므로 직접 접속과 새로고침에도 같은 화면을 표시합니다.
+const App: React.FC = () => window.location.pathname === '/' ? <EntryPage /> : <BookingApp />;
 
 export default App;
