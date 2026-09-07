@@ -139,7 +139,6 @@ export class OperationManager {
 
       // 트랜잭션: 슬롯 마감 + 요청 확정 + 영향받은 다른 요청 갱신
       const affectedRequests: string[] = [];
-      const dbSlots = this.db.getState().slots;
 
       this.db.beginTransaction();
 
@@ -159,6 +158,8 @@ export class OperationManager {
         });
 
         // 현재 version에서 모든 후보가 마감된 요청만 needs_reselection으로 갱신
+        // 마감이 반영된 트랜잭션 작업본으로 후보 가용성을 확인한다.
+        const dbSlots = this.db.getState().slots;
         const allRequests = this.db.getAllRequests();
         allRequests.forEach(otherRequest => {
           if (otherRequest.id === requestId) return;
