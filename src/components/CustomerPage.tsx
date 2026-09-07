@@ -5,7 +5,7 @@ import { OperationManager } from '../utils/operations';
 import { DatabaseManager } from '../utils/database';
 import { decideRequestStatus } from '../utils/decide';
 import { TIME_SLOTS } from '../utils/constants';
-import { getSupabase, getCurrentUserId } from '../utils/supabase';
+import { getSupabase, getCurrentUserId, getCurrentUser } from '../utils/supabase';
 
 interface CustomerPageProps {
   db: DatabaseManager;
@@ -14,6 +14,7 @@ interface CustomerPageProps {
 
 export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
   const [customerId, setCustomerId] = useState<string>('C01');
+  const [customerEmail, setCustomerEmail] = useState<string>('');
   const [stage, setStage] = useState<'select' | 'confirm' | 'view' | 'reselect'>('select');
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
   const [slots, setSlots] = useState<Record<string, Slot>>({});
@@ -43,6 +44,13 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
       const userId = await getCurrentUserId();
       if (userId) {
         setCustomerId(userId);
+
+        // 이메일 주소 획득
+        const user = await getCurrentUser();
+        if (user?.email) {
+          setCustomerEmail(user.email);
+        }
+
         setSupabaseReady(true);
         setError('');
       } else {
@@ -243,10 +251,10 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
       )}
       {mode === 'supabase' && (
         <div className="form-group">
-          <label>사용자 ID (Supabase 인증)</label>
+          <label>로그인 사용자</label>
           <input
             type="text"
-            value={customerId}
+            value={customerEmail}
             disabled
             placeholder="자동 로드됨"
           />
@@ -349,24 +357,58 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
       {stage === 'view' && customerRequests.length > 0 && (
         <div>
           <h3>내 신청 현황</h3>
-          {customerRequests.map((item, idx) => (
-            <div key={item.request.id} style={{ marginBottom: '20px', padding: '16px', background: 'white', borderRadius: '4px', border: '1px solid #ddd' }}>
-              <h4>신청 #{item.request.version} (접수일: {new Date(item.request.createdAt).toLocaleString()})</h4>
+          {customerRequests.map((item, idx) => {
+            const isLatest = idx === customerRequests.length - 1;
 
-              <div className="form-group">
-                <label>상태</label>
-                <div style={{ padding: '8px', background: '#f0f0f0', borderRadius: '4px' }}>
-                  {item.request.status === 'confirmed' && (
-                    <span className="slot-status confirmed">확정됨</span>
+            return (
+              <div
+                key={item.request.id}
+                style={{
+                  marginBottom: '20px',
+                  padding: '16px',
+                  background: item.request.status === 'confirmed' ? '#f0fff4' : item.request.status === 'needs_reselection' ? '#fff5f5' : 'white',
+                  borderRadius: '4px',
+                  border: item.request.status === 'confirmed' ? '2px solid #28a745' : item.request.status === 'needs_reselection' ? '2px solid #d9534f' : '1px solid #ddd',
+                }}
+              >
+                <h4 style={{ marginTop: 0 }}>신청 #{item.request.version} (접수일: {new Date(item.request.createdAt).toLocaleString()})</h4>
+
+                <div className="form-group">
+                  <label>상태</label>
+                  <div style={{ padding: '12px', background: '#f0f0f0', borderRadius: '4px', marginBottom: isLatest ? '12px' : '0' }}>
+                    {item.request.status === 'confirmed' && (
+                      <span className="slot-status confirmed">✅ 확정됨</span>
+                    )}
+                    {item.request.status === 'received' && (
+                      <span className="slot-status available">⏳ 접수됨 (검토 중)</span>
+                    )}
+                    {item.request.status === 'needs_reselection' && (
+                      <span className="alert alert-warning">⚠️ 재선택 필요</span>
+                    )}
+                  </div>
+
+                  {isLatest && item.request.status === 'confirmed' && (
+                    <div style={{ background: '#e8f5e9', padding: '12px', borderRadius: '4px', borderLeft: '4px solid #28a745', marginBottom: '12px' }}>
+                      <p style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: 'bold', color: '#1b5e20' }}>
+                        ✅ 예약이 확정되었습니다
+                      </p>
+                      <p style={{ margin: '0', fontSize: '12px', color: '#2e7d32' }}>
+                        아래에서 확정된 예약 정보를 확인하세요.
+                      </p>
+                    </div>
                   )}
-                  {item.request.status === 'received' && (
-                    <span className="slot-status available">접수됨</span>
-                  )}
-                  {item.request.status === 'needs_reselection' && (
-                    <span className="alert alert-warning">재선택 필요</span>
+
+                  {isLatest && item.request.status === 'needs_reselection' && (
+                    <div style={{ background: '#ffebee', padding: '12px', borderRadius: '4px', borderLeft: '4px solid #d9534f', marginBottom: '12px' }}>
+                      <p style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: 'bold', color: '#8b0000' }}>
+                        ⚠️ 신청한 모든 일정이 마감되었습니다
+                      </p>
+                      <p style={{ margin: '0', fontSize: '12px', color: '#c62828' }}>
+                        다른 일정을 다시 선택해주세요.
+                      </p>
+                    </div>
                   )}
                 </div>
-              </div>
 
               <div className="form-group">
                 <label>선택한 슬롯 (우선순위 순)</label>
@@ -397,7 +439,7 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
                 </div>
               )}
 
-              {item.request.status === 'needs_reselection' && idx === customerRequests.length - 1 && (
+              {item.request.status === 'needs_reselection' && isLatest && (
                 <button
                   className="btn btn-warning"
                   onClick={() => {
@@ -409,8 +451,9 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
                   재선택하기
                 </button>
               )}
-            </div>
-          ))}
+              </div>
+            );
+          })}
         </div>
       )}
 

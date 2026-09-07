@@ -106,12 +106,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
           </button>
         </div>
 
-        <div style={{ fontSize: '12px', color: '#666', marginTop: '30px', padding: '15px', background: '#f9f9f9', borderRadius: '4px' }}>
-          <p><strong>테스트 용 계정 생성:</strong></p>
-          <p>1. 이메일과 비밀번호 입력 후 "회원가입" 클릭</p>
-          <p>2. Supabase Auth 확인 이메일 확인 (선택사항)</p>
-          <p>3. 회원가입 후 로그인 화면에서 다시 로그인</p>
-          <p style={{ marginTop: '10px' }}><strong>관리자 계정:</strong> Supabase 대시보드에서 app_metadata.role을 'admin'으로 설정</p>
+        <div style={{ fontSize: '12px', color: '#666', marginTop: '30px', padding: '15px', background: '#f0f8ff', borderRadius: '4px', border: '1px solid #d4e6f1' }}>
+          <p style={{ margin: '0 0 10px 0' }}><strong>📌 데모 테스트 계정</strong></p>
+          <div style={{ background: 'white', padding: '10px', borderRadius: '3px', marginBottom: '10px', fontFamily: 'monospace' }}>
+            <p style={{ margin: '0 0 6px 0' }}>고객1: <code style={{ background: '#f0f0f0', padding: '2px 4px' }}>user1@test.com</code></p>
+            <p style={{ margin: '0 0 6px 0' }}>고객2: <code style={{ background: '#f0f0f0', padding: '2px 4px' }}>user2@test.com</code></p>
+            <p style={{ margin: '0' }}>관리자: <code style={{ background: '#f0f0f0', padding: '2px 4px' }}>admin@test.com</code></p>
+          </div>
+          <p style={{ margin: '0 0 8px 0' }}><strong>계정 설정 방법:</strong></p>
+          <ol style={{ margin: '0', paddingLeft: '16px', fontSize: '11px' }}>
+            <li>위의 테스트 계정 이메일과 임의의 비밀번호를 입력하여 회원가입</li>
+            <li>관리자 계정은 Supabase 대시보드에서 app_metadata.role을 'admin'으로 설정</li>
+          </ol>
         </div>
       </div>
     </div>

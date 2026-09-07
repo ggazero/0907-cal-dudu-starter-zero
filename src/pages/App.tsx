@@ -98,6 +98,7 @@ const App: React.FC = () => {
     }
   };
 
+
   return (
     <div className="container">
       <div className="header">
@@ -164,6 +165,26 @@ const App: React.FC = () => {
               데이터 초기화
             </button>
           )}
+
+          <a
+            href="/service_blueprint_asis.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-secondary"
+            style={{ padding: '6px 12px', fontSize: '12px', marginLeft: '20px', textDecoration: 'none', display: 'inline-block' }}
+          >
+            📋 AS-IS
+          </a>
+
+          <a
+            href="/service_blueprint_tobe.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-secondary"
+            style={{ padding: '6px 12px', fontSize: '12px', marginLeft: '8px', textDecoration: 'none', display: 'inline-block' }}
+          >
+            🎯 TO-BE
+          </a>
         </div>
       </div>
 
