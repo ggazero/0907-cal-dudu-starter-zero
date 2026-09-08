@@ -14,6 +14,7 @@ const EntryPage: React.FC = () => (
     <div className="header">
       <h1>cal.dudu-works.com</h1>
       <div className="role-selector">
+        <a className="btn btn-secondary" href="/user_journey_map.html" target="_blank" rel="noopener noreferrer">User Journey Map</a>
         <a className="btn btn-secondary" href="/service_blueprint_asis.html" target="_blank" rel="noopener noreferrer">📋 AS-IS</a>
         <a className="btn btn-secondary" href="/service_blueprint_tobe.html" target="_blank" rel="noopener noreferrer">🎯 TO-BE</a>
       </div>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>상담 예약 서비스 · User Journey Map</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; padding: 24px 32px; background: white; color: #333; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', Arial, sans-serif; font-size: 14px; line-height: 1.6; word-break: keep-all; overflow-wrap: break-word; }
+main { max-width: 1600px; margin: auto; }
+h1 { margin: 0; color: #003d80; font-size: 28px; line-height: 1.4; }
+h1 span { color: #0066cc; }
+.subtitle { margin: 6px 0 12px; color: #606b78; }
+nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+nav a { display: inline-block; padding: 7px 12px; border: 1px solid #003d80; border-radius: 4px; color: #003d80; text-decoration: none; font-size: 12px; font-weight: 600; }
+nav a[aria-current="page"], nav a:hover { background: #003d80; color: white; }
+a:focus-visible, .map-scroll:focus-visible { outline: 3px solid #0066cc; outline-offset: 3px; }
+.persona { display: flex; gap: 24px; align-items: center; background: #f0f7ff; border: 1px solid #d4e6f1; border-radius: 6px; padding: 12px 18px; margin-bottom: 18px; }
+.persona h2 { flex-shrink: 0; margin: 0; font-size: 20px; color: #003d80; }
+.persona h2 small { display: block; font-size: 11px; font-weight: 500; color: #526a82; }
+.persona p { margin: 2px 0; }
+.map-scroll { overflow-x: auto; border: 1px solid #d4e6f1; border-radius: 6px; }
+table { width: 100%; min-width: 1100px; border-collapse: collapse; table-layout: fixed; }
+col.label { width: 100px; }
+th, td { padding: 14px 12px; border-right: 1px solid #e0e6ec; border-bottom: 1px solid #e0e6ec; vertical-align: top; text-align: left; }
+thead th { background: #f0f7ff; color: #003d80; font-size: 15px; }
+.step { display: block; color: #0066cc; font-size: 12px; margin-bottom: 6px; }
+tbody th { background: #e8f2ff; color: #003d80; font-size: 13px; vertical-align: middle; }
+tr > :last-child { background: #ffe8e8; border-left: 2px solid #d9534f; border-right: 0; color: #852622; }
+thead th:last-child { border-top: 3px solid #d9534f; }
+tr:last-child > :last-child { border-bottom: 3px solid #d9534f; font-weight: 600; }
+.badge { display: block; width: fit-content; margin-top: 8px; background: #b63834; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; }
+.summary { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px; }
+.summary article { padding: 14px 18px; border-radius: 6px; }
+.summary h2 { font-size: 15px; margin: 0 0 6px; }
+.summary p { margin: 0; }
+.pain { background: #ffe8e8; border: 1px solid #d9534f; color: #852622; }
+.goal { background: #e8f5e9; border: 1px solid #b8d8bb; color: #2d5016; }
+@media (max-width: 700px) { body { padding: 20px 16px; } h1 { font-size: 24px; } .persona { align-items: flex-start; flex-direction: column; gap: 8px; } .summary { grid-template-columns: 1fr; } }
+@media print { @page { size: A3 landscape; margin: 12mm; } body { padding: 0; } nav { display: none; } .map-scroll { overflow: visible; } * { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
+</style>
+</head>
+<body>
+<main>
+<header>
+<h1>상담 예약 서비스 · <span>User Journey Map</span></h1>
+<p class="subtitle">Persona 손지은의 상담 예약 경험에서 Step 6 Pain Point 도출</p>
+<nav aria-label="제출 문서 이동">
+<a href="/user_journey_map.html" aria-current="page">User Journey Map</a>
+<a href="/service_blueprint_asis.html">Service Blueprint AS-IS</a>
+<a href="/service_blueprint_tobe.html">Service Blueprint TO-BE</a>
+</nav>
+</header>
+<section class="persona" aria-label="Persona 요약">
+<h2><small>Persona</small>손지은</h2>
+<div><p><strong>목표:</strong> 기한 내 상담을 확정해 살롱 운영안을 정리하고 싶음</p>
+<p><strong>핵심 니즈:</strong> 가능한 일정을 빠르게 확인하고 확정 여부를 예측할 수 있어야 함</p></div>
+</section>
+<div class="map-scroll" role="region" aria-label="6단계 User Journey Map, 작은 화면에서는 가로 스크롤" tabindex="0">
+<table aria-label="손지은의 상담 예약 경험">
+<colgroup><col class="label"><col span="6"></colgroup>
+<thead><tr><th scope="col">여정 단계</th><th scope="col"><span class="step">Step 1</span>서비스 진입</th><th scope="col"><span class="step">Step 2</span>일정 탐색</th><th scope="col"><span class="step">Step 3</span>상담 신청</th><th scope="col"><span class="step">Step 4</span>접수 후 대기</th><th scope="col"><span class="step">Step 5</span>결과 확인</th><th scope="col"><span class="step">Step 6</span>재선택 후 확정대기<span class="badge">핵심 Pain Point</span></th></tr></thead>
+<tbody><tr><th scope="row">사용자 행동</th><td>상담 예약 페이지 접속</td><td>가능한 날짜와 시간 확인</td><td>희망 시간 1~3개 선택 후 신청</td><td>관리자 처리를 기다림</td><td>확정 또는 재선택 상태 확인</td><td>다른 시간을 다시 선택해 신청한 후 앱에서 확정 여부를 반복 확인</td></tr>
+<tr><th scope="row">생각</th><td>"상담 가능한 시간이 있을까?"</td><td>"가능한 시간이 한눈에 보이네."</td><td>"이 중 하나는 되겠지."</td><td>"언제 확정되지?"</td><td>"확정됐나? 다시 골라야 하나?"</td><td>"다시 신청했는데 이번에는 언제 결과가 나오지?"</td></tr>
+<tr><th scope="row">감정</th><td>기대</td><td>안정</td><td>기대</td><td>기다림</td><td>불안</td><td>피로 / 불안</td></tr>
+<tr><th scope="row">Pain Point</th><td>—</td><td>—</td><td>접수와 확정의 차이를 명확히 이해해야 함</td><td>처리 시점을 알기 어려움</td><td>사용자가 직접 결과를 확인해야 함</td><td>확정 시점을 알 수 없어 반복 확인해야 하며 일정 조율이 어려움</td></tr>
+</tbody>
+</table>
+</div>
+<section class="summary" aria-label="여정 분석 요약">
+<article class="pain"><h2>핵심 Pain Point</h2><p>예약 확정 시점과 결과를 예측할 수 없고, 예약이 불가능할 경우 다시 일정을 탐색·신청한 뒤 동일한 확정 대기를 반복해야 해 불안과 피로가 커진다.</p></article>
+<article class="goal"><h2>개선 목표</h2><p>사용자가 직접 반복 확인하지 않아도 예약 상태를 명확히 알 수 있게 하고, 재선택이 필요한 경우 다음 행동으로 바로 이어질 수 있도록 한다.</p></article>
+</section>
+</main>
+</body>
+</html>
