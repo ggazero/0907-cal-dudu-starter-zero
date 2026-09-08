@@ -667,23 +667,52 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
             )}
 
             {mode === 'supabase' && (
-              <a
-                href="/"
-                className="btn btn-secondary"
-                style={{
-                  padding: '8px 12px',
-                  fontSize: '12px',
-                  fontWeight: '500',
-                  textDecoration: 'none',
-                  display: 'inline-block',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px',
-                  background: 'white',
-                  color: '#333'
-                }}
-              >
-                ← 돌아가기
-              </a>
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedSlots([]);
+                    setSelectedDate(null);
+                    setReselectDate(null);
+                    setInlineReselectSlots([]);
+                    setStage('select');
+                    setIsCreatingNewReservation(true);
+                  }}
+                  className="btn btn-secondary"
+                  style={{
+                    padding: '8px 12px',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    textDecoration: 'none',
+                    display: 'inline-block',
+                    cursor: 'pointer',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    background: 'white',
+                    color: '#333'
+                  }}
+                >
+                  ＋ 신규 예약
+                </button>
+
+                <a
+                  href="/"
+                  className="btn btn-secondary"
+                  style={{
+                    padding: '8px 12px',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    textDecoration: 'none',
+                    display: 'inline-block',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    background: 'white',
+                    color: '#333'
+                  }}
+                >
+                  ← 돌아가기
+                </a>
+              </>
             )}
           </div>
         </div>
