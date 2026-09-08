@@ -695,14 +695,36 @@ export class OperationManager {
     try {
       const client = getSupabase();
 
-      // 직접 update: request 상태를 needs_reselection으로 변경
-      const { error } = await client
+      // RLS에 의해 0건 변경된 경우도 실패로 처리하도록 저장된 행을 검증합니다.
+      const { data, error } = await client
         .from('requests')
         .update({ status: 'needs_reselection' })
-        .eq('id', requestId);
+        .eq('id', requestId)
+        .in('status', ['received', 'needs_reselection'])
+        .select('id,status')
+        .single<{ id: string; status: string }>();
 
       if (error) {
-        return { success: false, error: error.message };
+        return {
+          success: false,
+          error: [
+            `재선택 저장 실패 (requestId=${requestId})`,
+            error.code,
+            error.message,
+            error.details,
+            error.hint,
+            error.code === 'PGRST116'
+              ? '변경된 행이 없습니다. 요청 ID, 현재 상태 및 관리자 UPDATE/SELECT RLS 권한을 확인하세요.'
+              : '',
+          ].filter(Boolean).join(' | '),
+        };
+      }
+
+      if (!data || data.id !== requestId || data.status !== 'needs_reselection') {
+        return {
+          success: false,
+          error: `재선택 저장 검증 실패 (requestId=${requestId}, returnedId=${data?.id ?? '없음'}, status=${data?.status ?? '없음'})`,
+        };
       }
 
       return { success: true };
