@@ -141,6 +141,39 @@ export const AdminPage: React.FC<AdminPageProps> = ({ db, mode }) => {
     }
   };
 
+  const handleRequestReselection = async () => {
+    if (!selectedRequest) {
+      setError('요청을 선택하세요');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const operationId = `reselect-${selectedRequest}-${Date.now()}`;
+      const result = await om.requestReselection(
+        selectedRequest,
+        adminId,
+        operationId
+      );
+
+      if (result.success) {
+        setSuccess('재선택을 요청했습니다. 고객이 다시 선택해주기를 기다립니다.');
+        setSelectedRequest(null);
+        setSelectedSlotForConfirm(null);
+        setTimeout(() => loadData(), 500);
+      } else {
+        setError(result.error || '재선택 요청 실패');
+      }
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const currentRequest = selectedRequest ? requests.find(r => r.request.id === selectedRequest) : null;
 
   return (
@@ -268,15 +301,34 @@ export const AdminPage: React.FC<AdminPageProps> = ({ db, mode }) => {
                 </div>
               )}
 
-              {currentRequest.request.status !== 'confirmed' && (
-                <button
-                  className="btn btn-success"
-                  onClick={handleConfirm}
-                  disabled={!selectedSlotForConfirm || loading}
-                  style={{ marginTop: '10px', width: '100%' }}
-                >
-                  {loading ? '처리 중...' : '확정'}
-                </button>
+              {currentRequest.request.status === 'received' && (
+                <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>
+                    <strong>관리자 처리:</strong> 아래 중 하나를 선택하세요
+                  </div>
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleConfirm}
+                    disabled={!selectedSlotForConfirm || loading}
+                    style={{ width: '100%' }}
+                  >
+                    ✅ {loading ? '처리 중...' : '선택 슬롯으로 예약 확정'}
+                  </button>
+                  <button
+                    className="btn btn-warning"
+                    onClick={handleRequestReselection}
+                    disabled={loading}
+                    style={{ width: '100%', background: '#ff9800' }}
+                  >
+                    ⚠️ {loading ? '처리 중...' : '고객에게 재선택 요청'}
+                  </button>
+                </div>
+              )}
+
+              {currentRequest.request.status === 'needs_reselection' && (
+                <div className="alert alert-warning" style={{ marginTop: '16px' }}>
+                  고객이 재선택 중입니다. 새로운 신청을 기다리세요.
+                </div>
               )}
             </div>
           ) : (

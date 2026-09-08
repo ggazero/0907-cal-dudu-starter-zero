@@ -606,4 +606,114 @@ export class OperationManager {
       throw error;
     }
   }
+
+  // 관리자가 신청을 재선택 필요 상태로 변경
+  async requestReselection(
+    requestId: string,
+    adminId: string,
+    operationId: string
+  ): Promise<{
+    success: boolean;
+    error?: string;
+    log?: OperationLog;
+  }> {
+    if (this.mode === 'supabase') {
+      return this.requestReselectionSupabase(requestId, adminId, operationId);
+    }
+
+    // 로컬 모드
+    const idempotency = this.db.checkIdempotency(operationId);
+    if (idempotency.isDuplicate) {
+      return idempotency.cached as any;
+    }
+
+    let result: any = null;
+    let logError: string | undefined;
+
+    try {
+      const request = this.db.getRequest(requestId);
+      if (!request) {
+        logError = 'Request not found';
+        result = { success: false, error: logError };
+        return result;
+      }
+
+      // 이미 확정된 요청은 재선택 요청 불가
+      if (request.status === 'confirmed') {
+        logError = 'Cannot request reselection for confirmed request';
+        result = { success: false, error: logError };
+        return result;
+      }
+
+      // 트랜잭션
+      this.db.beginTransaction();
+
+      try {
+        this.db.updateRequest(requestId, {
+          status: 'needs_reselection',
+        });
+
+        this.db.commitTransaction();
+      } catch (txError) {
+        this.db.rollbackTransaction();
+        throw txError;
+      }
+
+      // 로그
+      const log = this.db.addLog({
+        timestamp: new Date().toISOString(),
+        action: 'confirm',
+        requestId,
+        adminId,
+        status: 'success',
+        error: 'admin_requested_reselection',
+      });
+
+      result = { success: true, log };
+      return result;
+    } catch (error) {
+      this.db.rollbackTransaction();
+      logError = String(error);
+      const log = this.db.addLog({
+        timestamp: new Date().toISOString(),
+        action: 'confirm',
+        requestId,
+        adminId,
+        status: 'failed',
+        error: logError,
+      });
+      result = { success: false, error: logError, log };
+      return result;
+    } finally {
+      this.db.recordOperation(operationId, result, logError);
+    }
+  }
+
+  private async requestReselectionSupabase(
+    requestId: string,
+    adminId: string,
+    operationId: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const client = getSupabase();
+      const result = await client.rpc('request_reselection', {
+        p_request_id: requestId,
+        p_admin_id: adminId,
+        p_operation_id: operationId,
+      });
+
+      if (result.error) {
+        return { success: false, error: result.error.message };
+      }
+
+      const data = result.data as any;
+      if (!data.success) {
+        return { success: false, error: data.error };
+      }
+
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  }
 }

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { SlotTable } from './SlotTable';
 import type { Slot, Request, Candidate } from '../types';
 import { OperationManager } from '../utils/operations';
 import { DatabaseManager } from '../utils/database';
@@ -12,10 +11,234 @@ interface CustomerPageProps {
   mode: 'local' | 'supabase';
 }
 
+const CalendarDateSelector: React.FC<{
+  slots: Record<string, Slot>;
+  selectedDate: string | null;
+  onDateSelect: (date: string) => void;
+}> = ({ slots, selectedDate, onDateSelect }) => {
+  const START_DATE = new Date('2026-09-09');
+  const END_DATE = new Date('2026-09-22');
+
+  // 달력에 표시할 첫 번째 날짜 (달의 첫 날)
+  const firstDay = new Date('2026-09-01');
+  const lastDay = new Date('2026-09-30');
+
+  // 날짜별 가능한 슬롯 수
+  const availableSlotsPerDate = Object.values(slots).reduce((acc, slot) => {
+    if (slot.status === 'available') {
+      acc[slot.date] = (acc[slot.date] || 0) + 1;
+    }
+    return acc;
+  }, {} as Record<string, number>);
+
+  // 캘린더 그리드 생성
+  const calendarDays: (string | null)[] = [];
+
+  // 첫 주의 빈 칸 채우기
+  for (let i = 0; i < firstDay.getDay(); i++) {
+    calendarDays.push(null);
+  }
+
+  // 해당 월의 날짜들
+  const current = new Date(firstDay);
+  while (current <= lastDay) {
+    const year = current.getFullYear();
+    const month = String(current.getMonth() + 1).padStart(2, '0');
+    const day = String(current.getDate()).padStart(2, '0');
+    calendarDays.push(`${year}-${month}-${day}`);
+    current.setDate(current.getDate() + 1);
+  }
+
+  const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
+
+  return (
+    <div style={{ marginBottom: '24px' }}>
+      <h4 style={{ marginBottom: '16px' }}>1단계: 날짜 선택</h4>
+
+      <div style={{ marginBottom: '16px', padding: '16px', background: '#f9f9f9', borderRadius: '6px' }}>
+        <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '12px', textAlign: 'center' }}>
+          2026년 9월
+        </div>
+
+        {/* 요일 헤더 */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '8px' }}>
+          {weekDays.map(day => (
+            <div
+              key={day}
+              style={{
+                textAlign: 'center',
+                fontWeight: 'bold',
+                fontSize: '12px',
+                padding: '8px 0',
+                color: '#666',
+              }}
+            >
+              {day}
+            </div>
+          ))}
+        </div>
+
+        {/* 달력 그리드 */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+          {calendarDays.map((date, idx) => {
+            if (!date) {
+              return <div key={`empty-${idx}`} style={{}} />;
+            }
+
+            const dateObj = new Date(date);
+            const isInRange = dateObj >= START_DATE && dateObj <= END_DATE;
+            const availableSlots = availableSlotsPerDate[date] || 0;
+            const isFullyBooked = isInRange && availableSlots === 0;
+            const isSelected = selectedDate === date;
+            const day = parseInt(date.split('-')[2], 10);
+
+            return (
+              <button
+                key={date}
+                onClick={() => isInRange && !isFullyBooked && onDateSelect(date)}
+                disabled={!isInRange || isFullyBooked}
+                style={{
+                  padding: '12px 4px',
+                  border: isSelected ? '3px solid #007bff' : '1px solid #ddd',
+                  background: isSelected
+                    ? '#e7f3ff'
+                    : isInRange && !isFullyBooked
+                    ? 'white'
+                    : '#f5f5f5',
+                  cursor: isInRange && !isFullyBooked ? 'pointer' : 'not-allowed',
+                  borderRadius: '4px',
+                  minHeight: '70px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  fontSize: '12px',
+                  color: isInRange ? '#333' : '#999',
+                  fontWeight: isSelected ? 'bold' : 'normal',
+                }}
+              >
+                <div style={{ fontSize: '14px', marginBottom: '4px' }}>{day}</div>
+                {isInRange && !isFullyBooked && (
+                  <div style={{ fontSize: '10px', color: isSelected ? '#007bff' : '#666' }}>
+                    {availableSlots}개
+                  </div>
+                )}
+                {isFullyBooked && (
+                  <div style={{ fontSize: '10px', color: '#999' }}>예약마감</div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const SlotSelectionUI: React.FC<{
+  slots: Record<string, Slot>;
+  selectedSlots: string[];
+  onToggle: (slotId: string) => void;
+  maxSelect: number;
+}> = ({ slots, selectedSlots, onToggle, maxSelect }) => {
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  // 선택된 날짜의 슬롯들
+  const timeSlotsForDate = selectedDate
+    ? Object.entries(slots)
+        .filter(([_, slot]) => slot.date === selectedDate)
+        .sort((a, b) => {
+          const timeOrder: Record<string, number> = { 'am': 0, 'pm': 1, 'evening': 2 };
+          return (timeOrder[a[1].timeLabel] || 0) - (timeOrder[b[1].timeLabel] || 0);
+        })
+    : [];
+
+  return (
+    <div>
+      <CalendarDateSelector
+        slots={slots}
+        selectedDate={selectedDate}
+        onDateSelect={setSelectedDate}
+      />
+
+      {selectedDate && (
+        <div>
+          <h4 style={{ marginBottom: '16px' }}>2단계: 시간 선택 ({selectedDate})</h4>
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '24px', flexWrap: 'wrap' }}>
+            {timeSlotsForDate.map(([slotId, slot]) => {
+              const isSelected = selectedSlots.includes(slotId);
+              const isAvailable = slot.status === 'available';
+              const canSelect = isAvailable && (!isSelected && selectedSlots.length < maxSelect);
+
+              return (
+                <button
+                  key={slotId}
+                  onClick={() => onToggle(slotId)}
+                  disabled={!canSelect}
+                  style={{
+                    padding: '12px 16px',
+                    border: isSelected ? '2px solid #28a745' : '1px solid #ddd',
+                    background: isSelected
+                      ? '#d4edda'
+                      : isAvailable
+                      ? 'white'
+                      : '#f5f5f5',
+                    cursor: canSelect ? 'pointer' : 'not-allowed',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    color: isAvailable ? '#333' : '#999',
+                  }}
+                >
+                  {TIME_SLOTS.find(t => t.label === slot.timeLabel)?.displayLabel}
+                  {isSelected && ' ✓'}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div style={{ marginBottom: '20px' }}>
+        <h4 style={{ marginBottom: '12px' }}>선택한 슬롯 ({selectedSlots.length}/{maxSelect})</h4>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          {selectedSlots.map((slotId, idx) => {
+            const slot = slots[slotId];
+            return (
+              <div
+                key={slotId}
+                style={{
+                  padding: '8px 12px',
+                  background: '#f0f0f0',
+                  borderRadius: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '13px',
+                }}
+              >
+                <span>
+                  {idx + 1}. {slot?.date} {TIME_SLOTS.find(t => t.label === slot?.timeLabel)?.displayLabel}
+                </span>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => onToggle(slotId)}
+                  style={{ padding: '2px 6px', fontSize: '11px' }}
+                >
+                  ✕
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
   const [customerId, setCustomerId] = useState<string>('C01');
   const [customerEmail, setCustomerEmail] = useState<string>('');
-  const [stage, setStage] = useState<'select' | 'confirm' | 'view' | 'reselect'>('select');
+  const [stage, setStage] = useState<'select' | 'confirm' | 'view' | 'reselect' | 'inline_reselect'>('select');
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
   const [slots, setSlots] = useState<Record<string, Slot>>({});
   const [customerRequests, setCustomerRequests] = useState<
@@ -25,6 +248,8 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
   const [success, setSuccess] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [supabaseReady, setSupabaseReady] = useState(false);
+  const [inlineReselectSlots, setInlineReselectSlots] = useState<string[]>([]);
+  const [statusNotification, setStatusNotification] = useState<string>('');
 
   const om = new OperationManager(db, mode);
 
@@ -69,6 +294,60 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
     if (mode === 'supabase' && !supabaseReady) return;
     loadData();
   }, [customerId, mode, supabaseReady]);
+
+  // view 단계에서 자동 갱신 (5초 간격)
+  useEffect(() => {
+    if (stage !== 'view' || customerRequests.length === 0) return;
+
+    const interval = setInterval(async () => {
+      const previousLatest = customerRequests[customerRequests.length - 1];
+
+      // loadData 호출하여 최신 상태 가져오기
+      try {
+        if (mode === 'supabase') {
+          const status = await om.getCustomerStatusSupabase(customerId);
+          if (status.length > 0) {
+            const currentLatest = status[status.length - 1];
+
+            // 상태 변경 감지
+            if (previousLatest.request.status !== currentLatest.request.status) {
+              setCustomerRequests(status);
+
+              if (currentLatest.request.status === 'confirmed') {
+                setStatusNotification('예약이 확정되었습니다.');
+                setTimeout(() => setStatusNotification(''), 5000);
+              } else if (currentLatest.request.status === 'needs_reselection') {
+                setStatusNotification('선택한 일정으로 예약이 어려워 다른 일정을 선택해주세요.');
+                setTimeout(() => setStatusNotification(''), 5000);
+              }
+            }
+          }
+        } else {
+          const status = om.getCustomerStatus(customerId);
+          if (status.length > 0) {
+            const currentLatest = status[status.length - 1];
+
+            // 상태 변경 감지
+            if (previousLatest.request.status !== currentLatest.request.status) {
+              setCustomerRequests(status);
+
+              if (currentLatest.request.status === 'confirmed') {
+                setStatusNotification('예약이 확정되었습니다.');
+                setTimeout(() => setStatusNotification(''), 5000);
+              } else if (currentLatest.request.status === 'needs_reselection') {
+                setStatusNotification('선택한 일정으로 예약이 어려워 다른 일정을 선택해주세요.');
+                setTimeout(() => setStatusNotification(''), 5000);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        // 조용히 무시 (갱신 실패는 로깅하지 않음)
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [stage, customerRequests, customerId, mode, om]);
 
   const loadData = async () => {
     try {
@@ -218,6 +497,55 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
     setError('');
   };
 
+  const getSuggestedSlots = (): string[] => {
+    const availableSlots = Object.values(slots)
+      .filter(s => s.status === 'available')
+      .sort((a, b) => {
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
+        if (dateA !== dateB) return dateA - dateB;
+        const timeOrder: Record<string, number> = { 'am': 0, 'pm': 1, 'evening': 2 };
+        return (timeOrder[a.timeLabel] || 0) - (timeOrder[b.timeLabel] || 0);
+      })
+      .slice(0, 3)
+      .map(s => s.id);
+    return availableSlots;
+  };
+
+  const handleInlineReselectSubmit = async () => {
+    if (inlineReselectSlots.length === 0) {
+      setError('최소 1개 이상의 슬롯을 선택하세요');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const latest = customerRequests[customerRequests.length - 1];
+      const operationId = `reselect-${latest.request.id}-${Date.now()}`;
+      const result = await om.resubmitRequest(
+        customerId,
+        latest.request.id,
+        inlineReselectSlots,
+        operationId
+      );
+
+      if (result.success) {
+        setSuccess('재선택이 완료되었습니다!');
+        setInlineReselectSlots([]);
+        setTimeout(() => loadData(), 500);
+      } else {
+        setError(result.error || '재선택 실패');
+      }
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // 슬롯 상태가 변경되었는지 확인
   const checkSlotAvailability = () => {
     if (stage === 'confirm' && customerRequests.length > 0) {
@@ -266,40 +594,17 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
 
       {stage === 'select' && (
         <div>
-          <h3>슬롯 선택 (1~3개)</h3>
-          <p style={{ color: '#666', fontSize: '14px' }}>
-            원하는 슬롯을 선택하고 제출하세요. 선택 순서가 희망 우선순위입니다.
+          <h3>예약 신청</h3>
+          <p style={{ color: '#666', fontSize: '14px', marginBottom: '20px' }}>
+            원하는 날짜와 시간을 선택하세요. 선택 순서가 희망 우선순위입니다.
           </p>
-          <SlotTable
+
+          <SlotSelectionUI
             slots={slots}
             selectedSlots={selectedSlots}
             onToggle={handleSlotToggle}
-            mode="select"
             maxSelect={3}
           />
-
-          <div style={{ marginBottom: '20px' }}>
-            <h4>선택한 슬롯 ({selectedSlots.length}/3)</h4>
-            <ul className="list">
-              {selectedSlots.map((slotId, idx) => {
-                const slot = slots[slotId];
-                return (
-                  <li key={slotId}>
-                    <span>
-                      {idx + 1}. {slot?.date} {TIME_SLOTS.find(t => t.label === slot?.timeLabel)?.displayLabel}
-                    </span>
-                    <button
-                      className="btn btn-secondary"
-                      onClick={() => handleSlotToggle(slotId)}
-                      style={{ padding: '4px 8px', fontSize: '12px' }}
-                    >
-                      제거
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
 
           <button
             className="btn btn-primary"
@@ -314,25 +619,31 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
       {stage === 'confirm' && checkSlotAvailability() && (
         <div>
           <h3>최종 확인</h3>
-          <p style={{ color: '#666', fontSize: '14px' }}>
-            다음과 같이 신청합니다. 제출하면 어드민이 확인 후 확정합니다.
+          <p style={{ color: '#666', fontSize: '14px', marginBottom: '20px' }}>
+            다음과 같이 신청합니다. 제출하면 관리자가 확인 후 확정합니다.
           </p>
-          <SlotTable slots={slots} selectedSlots={selectedSlots} onToggle={() => {}} mode="view" />
 
-          <div style={{ marginBottom: '20px' }}>
-            <h4>최종 선택 (우선순위 순)</h4>
-            <ul className="list">
+          <div style={{ marginBottom: '20px', padding: '16px', background: '#f9f9f9', borderRadius: '6px' }}>
+            <h4 style={{ marginTop: 0 }}>최종 선택 (우선순위 순)</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {selectedSlots.map((slotId, idx) => {
                 const slot = slots[slotId];
                 return (
-                  <li key={slotId}>
-                    <span>
-                      {idx + 1}. {slot?.date} {TIME_SLOTS.find(t => t.label === slot?.timeLabel)?.displayLabel}
-                    </span>
-                  </li>
+                  <div
+                    key={slotId}
+                    style={{
+                      padding: '12px',
+                      background: 'white',
+                      borderRadius: '4px',
+                      border: '1px solid #ddd',
+                      fontSize: '14px',
+                    }}
+                  >
+                    <strong>{idx + 1}순위:</strong> {slot?.date} {TIME_SLOTS.find(t => t.label === slot?.timeLabel)?.displayLabel}
+                  </div>
                 );
               })}
-            </ul>
+            </div>
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
@@ -356,143 +667,236 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
 
       {stage === 'view' && customerRequests.length > 0 && (
         <div>
-          <h3>내 신청 현황</h3>
-          {customerRequests.map((item, idx) => {
-            const isLatest = idx === customerRequests.length - 1;
+          {statusNotification && (
+            <div
+              style={{
+                marginBottom: '20px',
+                padding: '14px',
+                background:
+                  statusNotification.includes('확정') ? '#e8f5e9' : '#fff3e0',
+                border:
+                  statusNotification.includes('확정')
+                    ? '1px solid #28a745'
+                    : '1px solid #ff9800',
+                borderRadius: '6px',
+                color: statusNotification.includes('확정') ? '#1b5e20' : '#e65100',
+                fontSize: '14px',
+              }}
+            >
+              {statusNotification.includes('확정') ? '✅ ' : '⚠️ '}
+              {statusNotification}
+            </div>
+          )}
+
+          {(() => {
+            const latest = customerRequests[customerRequests.length - 1];
+            const isConfirmed = latest.request.status === 'confirmed';
+            const isNeedsReselection = latest.request.status === 'needs_reselection';
+            const isReceived = latest.request.status === 'received';
 
             return (
-              <div
-                key={item.request.id}
-                style={{
-                  marginBottom: '20px',
-                  padding: '16px',
-                  background: item.request.status === 'confirmed' ? '#f0fff4' : item.request.status === 'needs_reselection' ? '#fff5f5' : 'white',
-                  borderRadius: '4px',
-                  border: item.request.status === 'confirmed' ? '2px solid #28a745' : item.request.status === 'needs_reselection' ? '2px solid #d9534f' : '1px solid #ddd',
-                }}
-              >
-                <h4 style={{ marginTop: 0 }}>신청 #{item.request.version} (접수일: {new Date(item.request.createdAt).toLocaleString()})</h4>
+              <div>
+                <div style={{ marginBottom: '30px', padding: '24px', background: '#f9f9f9', borderRadius: '8px', border: '2px solid #ddd' }}>
+                  <div style={{ marginBottom: '16px' }}>
+                    <h3 style={{ margin: '0 0 12px 0', fontSize: '18px', color: '#333' }}>현재 예약 상태</h3>
 
-                <div className="form-group">
-                  <label>상태</label>
-                  <div style={{ padding: '12px', background: '#f0f0f0', borderRadius: '4px', marginBottom: isLatest ? '12px' : '0' }}>
-                    {item.request.status === 'confirmed' && (
-                      <span className="slot-status confirmed">✅ 확정됨</span>
+                    {isConfirmed && (
+                      <div style={{ padding: '16px', background: '#e8f5e9', borderRadius: '6px', borderLeft: '4px solid #28a745' }}>
+                        <p style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 'bold', color: '#1b5e20' }}>
+                          ✅ 예약 확정
+                        </p>
+                        <p style={{ margin: '0', fontSize: '14px', color: '#2e7d32' }}>
+                          {slots[latest.request.confirmedSlotId!]?.date} {TIME_SLOTS.find(t => t.label === slots[latest.request.confirmedSlotId!]?.timeLabel)?.displayLabel}
+                        </p>
+                      </div>
                     )}
-                    {item.request.status === 'received' && (
-                      <span className="slot-status available">⏳ 접수됨 (검토 중)</span>
+
+                    {isReceived && (
+                      <div style={{ padding: '16px', background: '#e3f2fd', borderRadius: '6px', borderLeft: '4px solid #2196f3' }}>
+                        <p style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 'bold', color: '#0d47a1' }}>
+                          ⏳ 예약 확인 중
+                        </p>
+                        <p style={{ margin: '0', fontSize: '14px', color: '#1565c0' }}>
+                          관리자가 선택한 일정을 검토하고 있습니다.
+                        </p>
+                      </div>
                     )}
-                    {item.request.status === 'needs_reselection' && (
-                      <span className="alert alert-warning">⚠️ 재선택 필요</span>
+
+                    {isNeedsReselection && (
+                      <div style={{ padding: '16px', background: '#fff3e0', borderRadius: '6px', borderLeft: '4px solid #ff9800' }}>
+                        <p style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 'bold', color: '#e65100' }}>
+                          ⚠️ 선택한 일정으로 예약이 어렵습니다
+                        </p>
+                        <p style={{ margin: '0', fontSize: '14px', color: '#e65100' }}>
+                          신청한 일정이 모두 마감되었습니다. 다른 일정을 선택해주세요.
+                        </p>
+                      </div>
                     )}
                   </div>
 
-                  {isLatest && item.request.status === 'confirmed' && (
-                    <div style={{ background: '#e8f5e9', padding: '12px', borderRadius: '4px', borderLeft: '4px solid #28a745', marginBottom: '12px' }}>
-                      <p style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: 'bold', color: '#1b5e20' }}>
-                        ✅ 예약이 확정되었습니다
-                      </p>
-                      <p style={{ margin: '0', fontSize: '12px', color: '#2e7d32' }}>
-                        아래에서 확정된 예약 정보를 확인하세요.
-                      </p>
-                    </div>
-                  )}
-
-                  {isLatest && item.request.status === 'needs_reselection' && (
-                    <div style={{ background: '#ffebee', padding: '12px', borderRadius: '4px', borderLeft: '4px solid #d9534f', marginBottom: '12px' }}>
-                      <p style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: 'bold', color: '#8b0000' }}>
-                        ⚠️ 신청한 모든 일정이 마감되었습니다
-                      </p>
-                      <p style={{ margin: '0', fontSize: '12px', color: '#c62828' }}>
-                        다른 일정을 다시 선택해주세요.
-                      </p>
-                    </div>
+                  {isConfirmed && latest.request.confirmedAt && (
+                    <p style={{ margin: '12px 0 0 0', fontSize: '12px', color: '#666' }}>
+                      확정일: {new Date(latest.request.confirmedAt).toLocaleString()}
+                    </p>
                   )}
                 </div>
 
-              <div className="form-group">
-                <label>선택한 슬롯 (우선순위 순)</label>
-                <ul className="list">
-                  {item.candidates.map((c, cidx) => {
-                    const slot = slots[c.slotId];
-                    const isAvailable = slot?.status === 'available';
-                    return (
-                      <li key={c.id}>
-                        <span>
-                          {cidx + 1}. {slot?.date} {TIME_SLOTS.find(t => t.label === slot?.timeLabel)?.displayLabel}
-                          {' '}
-                          <span style={{ marginLeft: '10px', fontSize: '12px', color: isAvailable ? '#28a745' : '#dc3545' }}>
-                            {isAvailable ? '(가능)' : '(마감)'}
+                <div style={{ marginBottom: '20px', padding: '16px', background: 'white', borderRadius: '6px', border: '1px solid #ddd' }}>
+                  <h4 style={{ marginTop: 0, marginBottom: '12px' }}>신청한 일정 (우선순위 순)</h4>
+                  <ul className="list">
+                    {latest.candidates.map((c, cidx) => {
+                      const slot = slots[c.slotId];
+                      const isAvailable = slot?.status === 'available';
+                      return (
+                        <li key={c.id} style={{ opacity: isAvailable ? 1 : 0.6 }}>
+                          <span>
+                            {cidx + 1}. {slot?.date} {TIME_SLOTS.find(t => t.label === slot?.timeLabel)?.displayLabel}
+                            {' '}
+                            <span style={{ marginLeft: '10px', fontSize: '12px', color: isAvailable ? '#28a745' : '#dc3545' }}>
+                              {isAvailable ? '(가능)' : '(마감)'}
+                            </span>
                           </span>
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-
-              {item.request.status === 'confirmed' && (
-                <div className="alert alert-success">
-                  <strong>확정됨!</strong> {slots[item.request.confirmedSlotId!]?.date}{' '}
-                  {TIME_SLOTS.find(t => t.label === slots[item.request.confirmedSlotId!]?.timeLabel)?.displayLabel}에
-                  확정되었습니다.
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
-              )}
 
-              {item.request.status === 'needs_reselection' && isLatest && (
-                <button
-                  className="btn btn-warning"
-                  onClick={() => {
-                    setStage('reselect');
-                    setSelectedSlots([]);
-                  }}
-                  style={{ background: '#ffc107', marginTop: '10px' }}
-                >
-                  재선택하기
-                </button>
-              )}
+                {isNeedsReselection && (
+                  <div style={{ marginBottom: '20px', padding: '16px', background: '#fafafa', borderRadius: '6px', border: '1px solid #ddd' }}>
+                    <h4 style={{ marginTop: 0, marginBottom: '12px' }}>추천 가능 일정</h4>
+                    {(() => {
+                      const suggested = getSuggestedSlots();
+                      return (
+                        <div>
+                          <div style={{ marginBottom: '12px' }}>
+                            <p style={{ fontSize: '12px', color: '#666', margin: '0 0 12px 0' }}>아래에서 가능한 일정을 선택하고 재신청하세요</p>
+                            <div className="table-container">
+                              <table className="slots-table">
+                                <thead>
+                                  <tr>
+                                    <th></th>
+                                    <th>날짜</th>
+                                    <th>시간</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {suggested.map(slotId => {
+                                    const slot = slots[slotId];
+                                    const isSelected = inlineReselectSlots.includes(slotId);
+                                    return (
+                                      <tr
+                                        key={slotId}
+                                        onClick={() => {
+                                          setInlineReselectSlots(prev => {
+                                            if (prev.includes(slotId)) {
+                                              return prev.filter(s => s !== slotId);
+                                            } else if (prev.length < 3) {
+                                              return [...prev, slotId];
+                                            }
+                                            return prev;
+                                          });
+                                        }}
+                                        style={{
+                                          cursor: 'pointer',
+                                          background: isSelected ? '#d4edda' : 'white',
+                                          borderColor: isSelected ? '#28a745' : 'inherit',
+                                        }}
+                                      >
+                                        <td style={{ textAlign: 'center' }}>
+                                          <input
+                                            type="checkbox"
+                                            checked={isSelected}
+                                            onChange={() => {}}
+                                            style={{ cursor: 'pointer' }}
+                                          />
+                                        </td>
+                                        <td>{slot?.date}</td>
+                                        <td>{TIME_SLOTS.find(t => t.label === slot?.timeLabel)?.displayLabel}</td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+
+                          <div style={{ marginBottom: '12px', padding: '12px', background: '#f0f0f0', borderRadius: '4px' }}>
+                            <p style={{ margin: 0, fontSize: '12px', color: '#666' }}>
+                              선택됨: {inlineReselectSlots.length}/3
+                            </p>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '10px' }}>
+                            <button
+                              className="btn btn-primary"
+                              onClick={handleInlineReselectSubmit}
+                              disabled={inlineReselectSlots.length === 0 || loading}
+                              style={{ flex: 1 }}
+                            >
+                              {loading ? '처리 중...' : '선택한 일정으로 재신청'}
+                            </button>
+                            <button
+                              className="btn btn-secondary"
+                              onClick={() => {
+                                setInlineReselectSlots([]);
+                                setStage('reselect');
+                              }}
+                              disabled={loading}
+                            >
+                              모든 일정 보기
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                <h4 style={{ marginTop: '30px', marginBottom: '12px' }}>신청 이력</h4>
+                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                  {customerRequests.map((item, idx) => (
+                    <div
+                      key={item.request.id}
+                      style={{
+                        marginBottom: '12px',
+                        padding: '12px',
+                        background: idx === customerRequests.length - 1 ? '#f5f5f5' : 'white',
+                        borderRadius: '4px',
+                        border: '1px solid #ddd',
+                        fontSize: '13px',
+                      }}
+                    >
+                      <div style={{ marginBottom: '6px' }}>
+                        <strong>신청 #{item.request.version}</strong> ({new Date(item.request.createdAt).toLocaleString()})
+                      </div>
+                      <div style={{ color: '#666', fontSize: '12px' }}>
+                        {item.request.status === 'confirmed' && '✅ 확정됨'}
+                        {item.request.status === 'received' && '⏳ 접수됨'}
+                        {item.request.status === 'needs_reselection' && '⚠️ 재선택 필요'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             );
-          })}
+          })()}
         </div>
       )}
 
       {stage === 'reselect' && customerRequests.length > 0 && (
         <div>
-          <h3>슬롯 재선택</h3>
-          <p style={{ color: '#666', fontSize: '14px' }}>
+          <h3>예약 재선택</h3>
+          <p style={{ color: '#666', fontSize: '14px', marginBottom: '20px' }}>
             이전 신청의 슬롯이 모두 마감되었습니다. 다시 선택해주세요.
           </p>
-          <SlotTable
+
+          <SlotSelectionUI
             slots={slots}
             selectedSlots={selectedSlots}
             onToggle={handleSlotToggle}
-            mode="select"
             maxSelect={3}
           />
-
-          <div style={{ marginBottom: '20px' }}>
-            <h4>새로 선택한 슬롯 ({selectedSlots.length}/3)</h4>
-            <ul className="list">
-              {selectedSlots.map((slotId, idx) => {
-                const slot = slots[slotId];
-                return (
-                  <li key={slotId}>
-                    <span>
-                      {idx + 1}. {slot?.date} {TIME_SLOTS.find(t => t.label === slot?.timeLabel)?.displayLabel}
-                    </span>
-                    <button
-                      className="btn btn-secondary"
-                      onClick={() => handleSlotToggle(slotId)}
-                      style={{ padding: '4px 8px', fontSize: '12px' }}
-                    >
-                      제거
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
             <button
