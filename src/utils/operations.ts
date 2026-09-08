@@ -618,7 +618,7 @@ export class OperationManager {
     log?: OperationLog;
   }> {
     if (this.mode === 'supabase') {
-      return this.requestReselectionSupabase(requestId, adminId, operationId);
+      return this.requestReselectionSupabase(requestId);
     }
 
     // 로컬 모드
@@ -690,25 +690,19 @@ export class OperationManager {
   }
 
   private async requestReselectionSupabase(
-    requestId: string,
-    adminId: string,
-    operationId: string
+    requestId: string
   ): Promise<{ success: boolean; error?: string }> {
     try {
       const client = getSupabase();
-      const result = await client.rpc('request_reselection', {
-        p_request_id: requestId,
-        p_admin_id: adminId,
-        p_operation_id: operationId,
-      });
 
-      if (result.error) {
-        return { success: false, error: result.error.message };
-      }
+      // 직접 update: request 상태를 needs_reselection으로 변경
+      const { error } = await client
+        .from('requests')
+        .update({ status: 'needs_reselection' })
+        .eq('id', requestId);
 
-      const data = result.data as any;
-      if (!data.success) {
-        return { success: false, error: data.error };
+      if (error) {
+        return { success: false, error: error.message };
       }
 
       return { success: true };

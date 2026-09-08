@@ -177,9 +177,10 @@ export const AdminPage: React.FC<AdminPageProps> = ({ db, mode }) => {
   const currentRequest = selectedRequest ? requests.find(r => r.request.id === selectedRequest) : null;
 
   return (
-    <div className="admin-page">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h2 style={{ margin: 0 }}>어드민 패널</h2>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: '#fafafa', overflow: 'hidden' }}>
+      {/* 헤더 */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', background: 'white', borderBottom: '1px solid #ddd', flexShrink: 0 }}>
+        <h2 style={{ margin: 0, fontSize: '18px' }}>어드민 패널</h2>
         {mode === 'local' && (
           <a
             href="/local"
@@ -191,10 +192,142 @@ export const AdminPage: React.FC<AdminPageProps> = ({ db, mode }) => {
         )}
       </div>
 
-      {error && <div className="alert alert-error">{error}</div>}
-      {success && <div className="alert alert-success">{success}</div>}
+      {error && <div style={{ padding: '12px 20px', background: '#ffebee', border: '1px solid #ef5350', borderRadius: '4px', color: '#c62828', margin: '8px 20px' }}>{error}</div>}
+      {success && <div style={{ padding: '12px 20px', background: '#e8f5e9', border: '1px solid #66bb6a', borderRadius: '4px', color: '#2e7d32', margin: '8px 20px' }}>{success}</div>}
 
-      <div className="grid">
+      {/* 상단: 신청 관리 (45%) */}
+      <div style={{ flex: '0 0 45%', display: 'flex', gap: '12px', padding: '12px', minHeight: 0, overflowY: 'auto' }}>
+        {/* 왼쪽: 신청 목록 */}
+        <div style={{ flex: '0 0 35%', display: 'flex', flexDirection: 'column', background: 'white', borderRadius: '6px', border: '1px solid #ddd', overflow: 'hidden' }}>
+          <div style={{ padding: '12px', borderBottom: '1px solid #ddd', fontWeight: '500', fontSize: '13px' }}>
+            신청 목록 ({requests.length}건)
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            <ul className="list" style={{ margin: 0 }}>
+              {requests.map((item) => (
+                <li
+                  key={item.request.id}
+                  onClick={() => {
+                    setSelectedRequest(item.request.id);
+                    setSelectedSlotForConfirm(null);
+                  }}
+                  style={{
+                    cursor: 'pointer',
+                    background: selectedRequest === item.request.id ? '#e7f3ff' : 'white',
+                    borderColor: selectedRequest === item.request.id ? '#007bff' : '#ddd',
+                    marginBottom: '0',
+                    borderRadius: '0',
+                    borderBottom: '1px solid #ddd',
+                    padding: '10px 12px',
+                  }}
+                >
+                  <div style={{ fontSize: '12px' }}>
+                    <strong>{item.request.customerId}</strong> v{item.request.version}
+                    <div style={{ fontSize: '11px', color: '#666', marginTop: '2px' }}>
+                      {new Date(item.request.createdAt).toLocaleString()}
+                    </div>
+                    <span style={{ fontSize: '10px', marginTop: '4px', display: 'inline-block', padding: '2px 6px', borderRadius: '3px', background: item.request.status === 'confirmed' ? '#e8f5e9' : item.request.status === 'needs_reselection' ? '#fff3e0' : '#e3f2fd', color: item.request.status === 'confirmed' ? '#2e7d32' : item.request.status === 'needs_reselection' ? '#e65100' : '#0d47a1' }}>
+                      {item.request.status === 'confirmed' ? '✓ 확정' : item.request.status === 'needs_reselection' ? '⚠ 재선택' : '⏳ 접수'}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {/* 오른쪽: 신청 상세 */}
+        <div style={{ flex: '1', display: 'flex', flexDirection: 'column', background: 'white', borderRadius: '6px', border: '1px solid #ddd', overflow: 'hidden' }}>
+          {currentRequest ? (
+            <>
+              <div style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
+                <div style={{ marginBottom: '16px', fontSize: '13px' }}>
+                  <div style={{ marginBottom: '8px' }}>
+                    <strong>고객:</strong> {currentRequest.request.customerId}
+                  </div>
+                  <div style={{ marginBottom: '8px' }}>
+                    <strong>신청:</strong> {new Date(currentRequest.request.createdAt).toLocaleString()}
+                  </div>
+                  <div style={{ marginBottom: '12px' }}>
+                    <strong>상태:</strong>{' '}
+                    <span style={{ padding: '2px 6px', borderRadius: '3px', background: currentRequest.request.status === 'confirmed' ? '#e8f5e9' : currentRequest.request.status === 'needs_reselection' ? '#fff3e0' : '#e3f2fd', color: currentRequest.request.status === 'confirmed' ? '#2e7d32' : currentRequest.request.status === 'needs_reselection' ? '#e65100' : '#0d47a1', fontSize: '11px' }}>
+                      {currentRequest.request.status === 'confirmed' ? '✓ 확정' : currentRequest.request.status === 'needs_reselection' ? '⚠ 재선택' : '⏳ 접수'}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '16px' }}>
+                  <strong style={{ fontSize: '12px' }}>희망 일정:</strong>
+                  <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {currentRequest.candidates.map((c, idx) => {
+                      const slot = slots[c.slotId];
+                      return (
+                        <div
+                          key={c.id}
+                          onClick={() => {
+                            if (slot?.status === 'available' && currentRequest.request.status !== 'confirmed') {
+                              setSelectedSlotForConfirm(c.slotId);
+                            }
+                          }}
+                          style={{
+                            padding: '6px 8px',
+                            fontSize: '12px',
+                            borderRadius: '3px',
+                            cursor: slot?.status === 'available' && currentRequest.request.status !== 'confirmed' ? 'pointer' : 'default',
+                            background: selectedSlotForConfirm === c.slotId ? '#d4edda' : slot?.status === 'available' ? 'white' : '#f8d7da',
+                            border: selectedSlotForConfirm === c.slotId ? '1px solid #28a745' : '1px solid #ddd',
+                          }}
+                        >
+                          {idx + 1}. {slot?.date} {TIME_SLOTS.find(t => t.label === slot?.timeLabel)?.displayLabel}
+                          <span style={{ marginLeft: '6px', fontSize: '10px', color: slot?.status === 'available' ? '#28a745' : '#dc3545' }}>
+                            {slot?.status === 'available' ? '(가능)' : '(마감)'}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* 버튼 */}
+              <div style={{ padding: '12px', borderTop: '1px solid #ddd', display: 'flex', gap: '8px', flexShrink: 0 }}>
+                {currentRequest.request.status === 'received' && (
+                  <>
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleConfirm}
+                      disabled={!selectedSlotForConfirm || loading}
+                      style={{ flex: 1, padding: '8px', fontSize: '12px' }}
+                    >
+                      {loading ? '처리중' : '✓ 확정'}
+                    </button>
+                    <button
+                      className="btn btn-warning"
+                      onClick={handleRequestReselection}
+                      disabled={loading}
+                      style={{ flex: 1, padding: '8px', fontSize: '12px', background: '#ff9800', border: 'none', color: 'white' }}
+                    >
+                      {loading ? '처리중' : '⚠ 재선택'}
+                    </button>
+                  </>
+                )}
+              </div>
+            </>
+          ) : (
+            <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>선택한 신청이 없습니다</div>
+          )}
+        </div>
+      </div>
+
+      {/* 하단: 예약 현황 (55%) */}
+      <div style={{ flex: '0 0 55%', display: 'flex', padding: '12px', gap: '12px', minHeight: 0, overflowY: 'auto', background: 'white', margin: '0 12px 12px 12px', borderRadius: '6px', border: '1px solid #ddd' }}>
+        <div style={{ fontSize: '12px', color: '#666', flex: 1, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          달력 기능 예정 (현재 슬롯 현황)
+        </div>
+      </div>
+
+      {/* 기존 그리드 숨김 */}
+      <div className="grid" style={{ display: 'none' }}>
         {/* 요청 목록 */}
         <div>
           <h3>신청 목록 (총 {requests.length}건)</h3>
