@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import type { Slot, Request, Candidate } from '../types';
 import { OperationManager } from '../utils/operations';
 import { DatabaseManager } from '../utils/database';
@@ -10,6 +10,11 @@ interface CustomerPageProps {
   db: DatabaseManager;
   mode: 'local' | 'supabase';
 }
+
+// 최신 신청과 현재 버전의 후보를 조회 및 polling에서 동일하게 사용합니다.
+const currentCustomerRequests = (items: Array<{ request: Request; candidates: Candidate[]; decision: any }>) =>
+  [...items].sort((a, b) => new Date(a.request.createdAt).getTime() - new Date(b.request.createdAt).getTime() || a.request.id.localeCompare(b.request.id))
+    .map(item => ({ ...item, candidates: item.candidates.filter(candidate => candidate.version === item.request.version) }));
 
 const CalendarDateSelector: React.FC<{
   slots: Record<string, Slot>;
@@ -272,7 +277,7 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
   const [reselectDate, setReselectDate] = useState<string | null>(null);
   const [isCreatingNewReservation, setIsCreatingNewReservation] = useState(false);
 
-  const om = new OperationManager(db, mode);
+  const om = useMemo(() => new OperationManager(db, mode), [db, mode]);
 
   // Supabase 모드 초기화
   useEffect(() => {
@@ -326,13 +331,14 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
       // loadData 호출하여 최신 상태 가져오기
       try {
         if (mode === 'supabase') {
-          const status = await om.getCustomerStatusSupabase(customerId);
+          const status = currentCustomerRequests(await om.getCustomerStatusSupabase(customerId));
           if (status.length > 0) {
             const currentLatest = status[status.length - 1];
 
             // 상태 변경 감지
             if (previousLatest.request.status !== currentLatest.request.status) {
               setCustomerRequests(status);
+              await loadData(true);
 
               if (currentLatest.request.status === 'confirmed') {
                 setStatusNotification('예약이 확정되었습니다.');
@@ -344,13 +350,14 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
             }
           }
         } else {
-          const status = om.getCustomerStatus(customerId);
+          const status = currentCustomerRequests(om.getCustomerStatus(customerId));
           if (status.length > 0) {
             const currentLatest = status[status.length - 1];
 
             // 상태 변경 감지
             if (previousLatest.request.status !== currentLatest.request.status) {
               setCustomerRequests(status);
+              await loadData(true);
 
               if (currentLatest.request.status === 'confirmed') {
                 setStatusNotification('예약이 확정되었습니다.');
@@ -395,7 +402,7 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
         });
         setSlots(slotsRecord);
 
-        const status = await om.getCustomerStatusSupabase(customerId);
+        const status = currentCustomerRequests(await om.getCustomerStatusSupabase(customerId));
         setCustomerRequests(status);
 
         if (!skipStageUpdate) {
@@ -405,7 +412,7 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
           } else {
             const latest = status[status.length - 1];
             if (latest.request.status === 'needs_reselection') {
-              setStage('reselect');
+              setStage('view');
             } else if (latest.request.status === 'confirmed') {
               setStage('view');
             } else {
@@ -416,7 +423,7 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
       } else {
         const state = db.getState();
         setSlots(state.slots);
-        const status = om.getCustomerStatus(customerId);
+        const status = currentCustomerRequests(om.getCustomerStatus(customerId));
         setCustomerRequests(status);
 
         if (!skipStageUpdate) {
@@ -426,7 +433,7 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
           } else {
             const latest = status[status.length - 1];
             if (latest.request.status === 'needs_reselection') {
-              setStage('reselect');
+              setStage('view');
             } else if (latest.request.status === 'confirmed') {
               setStage('view');
             } else {
@@ -589,7 +596,7 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
 
       if (decision.status !== 'ok') {
         setError('선택한 슬롯의 상태가 변경되었습니다. 다시 선택해주세요.');
-        setStage('reselect');
+        setStage('view');
         setSelectedSlots([]);
         return false;
       }
@@ -1106,18 +1113,21 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
                                 disabled={inlineReselectSlots.length === 0 || loading}
                                 style={{ flex: 1, padding: '8px', fontSize: '12px' }}
                               >
-                                {loading ? '처리 중...' : '재신청'}
+                                {loading ? '처리 중...' : '추천 일정으로 재신청'}
                               </button>
                               <button
                                 className="btn btn-secondary"
                                 onClick={() => {
                                   setInlineReselectSlots([]);
+                                  setSelectedSlots([]);
+                                  setReselectDate(null);
+                                  setIsCreatingNewReservation(false);
                                   setStage('reselect');
                                 }}
                                 disabled={loading}
                                 style={{ flex: 1, padding: '8px', fontSize: '12px' }}
                               >
-                                모든 일정
+                                모든 일정 보기
                               </button>
                             </div>
                           </div>

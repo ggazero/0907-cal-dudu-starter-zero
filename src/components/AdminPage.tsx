@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SlotTable } from './SlotTable';
+import { AdminReservationCalendar } from './AdminReservationCalendar';
 import type { Slot, Request, Candidate, OperationLog } from '../types';
 import { OperationManager } from '../utils/operations';
 import { DatabaseManager } from '../utils/database';
@@ -181,7 +182,11 @@ export const AdminPage: React.FC<AdminPageProps> = ({ db, mode }) => {
   const currentRequest = selectedRequest ? requests.find(r => r.request.id === selectedRequest) : null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: '#fafafa', overflow: 'hidden' }}>
+    <div className="admin-page" style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: '#fafafa', overflow: 'hidden' }}>
+      <style>{`
+        .container:has(> .admin-page) { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+        .container > .admin-page { flex: 1; min-height: 0; height: auto !important; }
+      `}</style>
       {/* 헤더 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', background: 'white', borderBottom: '1px solid #ddd', flexShrink: 0 }}>
         <h2 style={{ margin: 0, fontSize: '18px' }}>어드민 패널</h2>
@@ -327,10 +332,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({ db, mode }) => {
       </div>
 
       {/* 하단: 예약 현황 (55%) */}
-      <div style={{ flex: '0 0 55%', display: 'flex', padding: '12px', gap: '12px', minHeight: 0, overflowY: 'auto', background: 'white', margin: '0 12px 12px 12px', borderRadius: '6px', border: '1px solid #ddd' }}>
-        <div style={{ fontSize: '12px', color: '#666', flex: 1, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          달력 기능 예정 (현재 슬롯 현황)
-        </div>
+      <div style={{ flex: '1 1 0', display: 'flex', padding: '12px', gap: '12px', minHeight: 0, overflowY: 'auto', background: 'white', margin: '0 12px 12px 12px', borderRadius: '6px', border: '1px solid #ddd' }}>
+        <AdminReservationCalendar slots={slots} requests={requests.map(item => item.request)} />
       </div>
 
       {/* 기존 그리드 숨김 */}
@@ -490,7 +493,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({ db, mode }) => {
         </div>
       </div>
 
-      {/* 슬롯 현황 */}
+      {/* 기존 슬롯 현황 및 로그는 숨김: 하단 달력 안에서 조회 */}
+      <div style={{ display: 'none' }}>
       <div style={{ marginTop: '40px' }}>
         <h3>슬롯 현황 (표시용)</h3>
         <SlotTable slots={slots} selectedSlots={[]} onToggle={() => {}} mode="view" />
@@ -535,6 +539,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ db, mode }) => {
             </tbody>
           </table>
         </div>
+      </div>
       </div>
     </div>
   );
