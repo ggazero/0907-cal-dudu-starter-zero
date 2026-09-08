@@ -263,6 +263,7 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
   const [supabaseReady, setSupabaseReady] = useState(false);
   const [inlineReselectSlots, setInlineReselectSlots] = useState<string[]>([]);
   const [priorityNotifySlots, setPriorityNotifySlots] = useState<Set<string>>(new Set());
+  const [expandNotify, setExpandNotify] = useState(false);
   const [statusNotification, setStatusNotification] = useState<string>('');
 
   const om = new OperationManager(db, mode);
@@ -585,9 +586,15 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#fafafa' }}>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100dvh',
+      background: '#fafafa',
+      overflow: 'hidden'
+    }}>
       {/* 헤더 정보 (축소) */}
-      <div style={{ background: 'white', borderBottom: '1px solid #ddd', padding: '12px 20px' }}>
+      <div style={{ background: 'white', borderBottom: '1px solid #ddd', padding: '12px 20px', flexShrink: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#666' }}>
           <div>
             {mode === 'local' ? `고객: ${customerId}` : `로그인: ${customerEmail}`}
@@ -606,12 +613,21 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
       {/* 메인 콘텐츠 */}
       <div
         style={{
-          maxWidth: '600px',
-          margin: '0 auto',
+          flex: 1,
+          overflowY: 'auto',
           padding: '24px 20px',
+          display: 'flex',
+          flexDirection: 'column',
         }}
-        className="customer-page"
       >
+        <div
+          style={{
+            maxWidth: '600px',
+            margin: '0 auto',
+            width: '100%',
+          }}
+          className="customer-page"
+        >
         {error && <div className="alert alert-error">{error}</div>}
         {success && <div className="alert alert-success">{success}</div>}
 
@@ -909,13 +925,31 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
 
                           {/* 빈자리 알림 */}
                           <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #ddd' }}>
-                            <p style={{ fontSize: '13px', color: '#666', marginBottom: '12px' }}>
-                              <strong>원하는 일정이 없나요?</strong>
-                            </p>
-                            <p style={{ fontSize: '12px', color: '#999', marginBottom: '12px' }}>
-                              신청했던 일정이 다시 가능해지면 알려드릴게요.
-                            </p>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <button
+                              onClick={() => setExpandNotify(!expandNotify)}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                padding: 0,
+                                cursor: 'pointer',
+                                width: '100%',
+                                textAlign: 'left',
+                                marginBottom: '12px',
+                              }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div>
+                                  <strong style={{ fontSize: '13px', color: '#666' }}>원하는 일정이 없나요?</strong>
+                                </div>
+                                <span style={{ fontSize: '12px', color: '#999' }}>{expandNotify ? '▼' : '▶'}</span>
+                              </div>
+                            </button>
+                            {expandNotify && (
+                              <div>
+                                <p style={{ fontSize: '12px', color: '#999', marginBottom: '12px' }}>
+                                  신청했던 일정이 다시 가능해지면 알려드릴게요.
+                                </p>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                               {latest.candidates.map(c => {
                                 const slot = slots[c.slotId];
                                 const isPriorityNotified = priorityNotifySlots.has(c.slotId);
@@ -965,7 +999,9 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
                                   </div>
                                 );
                               })}
-                            </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -973,9 +1009,27 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
                   </div>
                 )}
 
-                <h4 style={{ marginTop: '30px', marginBottom: '12px' }}>신청 이력</h4>
-                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                  {customerRequests.map((item, idx) => (
+                <div style={{ marginTop: '30px' }}>
+                  <button
+                    onClick={() => setExpandNotify(!expandNotify)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      cursor: 'pointer',
+                      marginBottom: '12px',
+                      width: '100%',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h4 style={{ margin: 0, marginRight: '10px' }}>신청 이력</h4>
+                      <span style={{ fontSize: '12px', color: '#999', flexShrink: 0 }}>{expandNotify ? '▼' : '▶'}</span>
+                    </div>
+                  </button>
+                  {expandNotify && (
+                    <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                      {customerRequests.map((item, idx) => (
                     <div
                       key={item.request.id}
                       style={{
@@ -996,7 +1050,9 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
                         {item.request.status === 'needs_reselection' && '⚠️ 재선택 필요'}
                       </div>
                     </div>
-                  ))}
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -1069,6 +1125,7 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
             })()}
           </div>
         )}
+        </div>
       </div>
     </div>
   );
