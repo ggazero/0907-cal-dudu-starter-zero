@@ -262,7 +262,7 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
   const [loading, setLoading] = useState(false);
   const [supabaseReady, setSupabaseReady] = useState(false);
   const [inlineReselectSlots, setInlineReselectSlots] = useState<string[]>([]);
-  const [notifySlots, setNotifySlots] = useState<Set<string>>(new Set());
+  const [priorityNotifySlots, setPriorityNotifySlots] = useState<Set<string>>(new Set());
   const [statusNotification, setStatusNotification] = useState<string>('');
 
   const om = new OperationManager(db, mode);
@@ -918,28 +918,31 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                               {latest.candidates.map(c => {
                                 const slot = slots[c.slotId];
-                                const hasNotified = notifySlots.has(c.slotId);
+                                const isPriorityNotified = priorityNotifySlots.has(c.slotId);
                                 return (
                                   <div
                                     key={c.slotId}
                                     style={{
                                       padding: '12px',
-                                      background: hasNotified ? '#f0f8ff' : '#f9f9f9',
+                                      background: isPriorityNotified ? '#fff8e1' : '#f9f9f9',
                                       borderRadius: '4px',
-                                      border: hasNotified ? '1px solid #007bff' : '1px solid #ddd',
+                                      border: isPriorityNotified ? '1px solid #ffa500' : '1px solid #ddd',
                                       display: 'flex',
                                       justifyContent: 'space-between',
-                                      alignItems: 'center',
+                                      alignItems: 'flex-start',
                                     }}
                                   >
-                                    <div>
-                                      {hasNotified ? (
+                                    <div style={{ flex: 1 }}>
+                                      {isPriorityNotified ? (
                                         <div>
-                                          <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#007bff', marginBottom: '4px' }}>
-                                            🔔 빈자리 알림 신청 완료
+                                          <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#ffa500', marginBottom: '4px' }}>
+                                            🔔 우선 알림 대상
                                           </div>
-                                          <div style={{ fontSize: '12px', color: '#666' }}>
+                                          <div style={{ fontSize: '12px', color: '#666', marginBottom: '6px' }}>
                                             {slot?.date} {TIME_SLOTS.find(t => t.label === slot?.timeLabel)?.displayLabel}
+                                          </div>
+                                          <div style={{ fontSize: '11px', color: '#999', fontStyle: 'italic' }}>
+                                            이전 예약이 불가했던 고객으로, 빈자리가 생기면 먼저 안내받습니다.
                                           </div>
                                         </div>
                                       ) : (
@@ -948,13 +951,13 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
                                         </div>
                                       )}
                                     </div>
-                                    {!hasNotified && (
+                                    {!isPriorityNotified && (
                                       <button
                                         className="btn btn-secondary"
                                         onClick={() => {
-                                          setNotifySlots(prev => new Set([...prev, c.slotId]));
+                                          setPriorityNotifySlots(prev => new Set([...prev, c.slotId]));
                                         }}
-                                        style={{ padding: '6px 12px', fontSize: '12px', marginLeft: '10px', whiteSpace: 'nowrap' }}
+                                        style={{ padding: '6px 12px', fontSize: '12px', marginLeft: '10px', whiteSpace: 'nowrap', flexShrink: 0 }}
                                       >
                                         🔔 알림 신청
                                       </button>
