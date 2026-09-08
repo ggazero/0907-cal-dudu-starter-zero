@@ -564,108 +564,146 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
   };
 
   return (
-    <div className="customer-page">
-      {mode === 'local' && (
-        <div className="form-group">
-          <label>고객 코드</label>
-          <input
-            type="text"
-            value={customerId}
-            onChange={e => setCustomerId(e.target.value)}
-            placeholder="C01"
-            disabled={stage === 'confirm'}
-          />
+    <div style={{ minHeight: '100vh', background: '#fafafa' }}>
+      {/* 헤더 정보 (축소) */}
+      <div style={{ background: 'white', borderBottom: '1px solid #ddd', padding: '12px 20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#666' }}>
+          <div>
+            {mode === 'local' ? `고객: ${customerId}` : `로그인: ${customerEmail}`}
+          </div>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <a href="/" style={{ color: '#666', textDecoration: 'none' }}>← 돌아가기</a>
+            {mode === 'local' && (
+              <>
+                <a href="/admin" style={{ color: '#666', textDecoration: 'none' }}>관리자</a>
+              </>
+            )}
+          </div>
         </div>
-      )}
-      {mode === 'supabase' && (
-        <div className="form-group">
-          <label>로그인 사용자</label>
-          <input
-            type="text"
-            value={customerEmail}
-            disabled
-            placeholder="자동 로드됨"
-          />
-        </div>
-      )}
+      </div>
 
-      {error && <div className="alert alert-error">{error}</div>}
-      {success && <div className="alert alert-success">{success}</div>}
+      {/* 메인 콘텐츠 */}
+      <div
+        style={{
+          maxWidth: '600px',
+          margin: '0 auto',
+          padding: '24px 20px',
+        }}
+        className="customer-page"
+      >
+        {error && <div className="alert alert-error">{error}</div>}
+        {success && <div className="alert alert-success">{success}</div>}
 
-      {stage === 'select' && (
-        <div>
-          <h3>예약 신청</h3>
-          <p style={{ color: '#666', fontSize: '14px', marginBottom: '20px' }}>
-            원하는 날짜와 시간을 선택하세요. 선택 순서가 희망 우선순위입니다.
-          </p>
+        {stage === 'select' && (
+          <div>
+            {/* 진행 단계 표시 */}
+            <div style={{ display: 'flex', gap: '20px', marginBottom: '32px', justifyContent: 'center' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#007bff', marginBottom: '4px' }}>1</div>
+                <div style={{ fontSize: '12px', color: '#333' }}>날짜 선택</div>
+              </div>
+              <div style={{ color: '#ddd', fontSize: '20px' }}>→</div>
+              <div style={{ textAlign: 'center', opacity: 0.5 }}>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#666', marginBottom: '4px' }}>2</div>
+                <div style={{ fontSize: '12px', color: '#999' }}>시간 선택</div>
+              </div>
+              <div style={{ color: '#ddd', fontSize: '20px' }}>→</div>
+              <div style={{ textAlign: 'center', opacity: 0.5 }}>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#666', marginBottom: '4px' }}>3</div>
+                <div style={{ fontSize: '12px', color: '#999' }}>확인</div>
+              </div>
+            </div>
 
-          <SlotSelectionUI
-            slots={slots}
-            selectedSlots={selectedSlots}
-            onToggle={handleSlotToggle}
-            maxSelect={3}
-          />
+            <SlotSelectionUI
+              slots={slots}
+              selectedSlots={selectedSlots}
+              onToggle={handleSlotToggle}
+              maxSelect={3}
+            />
 
-          <button
-            className="btn btn-primary"
-            onClick={() => setStage('confirm')}
-            disabled={selectedSlots.length === 0 || loading}
-          >
-            다음: 최종 확인
-          </button>
-        </div>
-      )}
-
-      {stage === 'confirm' && checkSlotAvailability() && (
-        <div>
-          <h3>최종 확인</h3>
-          <p style={{ color: '#666', fontSize: '14px', marginBottom: '20px' }}>
-            다음과 같이 신청합니다. 제출하면 관리자가 확인 후 확정합니다.
-          </p>
-
-          <div style={{ marginBottom: '20px', padding: '16px', background: '#f9f9f9', borderRadius: '6px' }}>
-            <h4 style={{ marginTop: 0 }}>최종 선택 (우선순위 순)</h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {selectedSlots.map((slotId, idx) => {
-                const slot = slots[slotId];
-                return (
-                  <div
-                    key={slotId}
-                    style={{
-                      padding: '12px',
-                      background: 'white',
-                      borderRadius: '4px',
-                      border: '1px solid #ddd',
-                      fontSize: '14px',
-                    }}
-                  >
-                    <strong>{idx + 1}순위:</strong> {slot?.date} {TIME_SLOTS.find(t => t.label === slot?.timeLabel)?.displayLabel}
-                  </div>
-                );
-              })}
+            <div style={{ marginTop: '32px', display: 'flex', gap: '10px' }}>
+              <button
+                className="btn btn-primary"
+                onClick={() => setStage('confirm')}
+                disabled={selectedSlots.length === 0 || loading}
+                style={{ flex: 1, padding: '12px', fontSize: '15px' }}
+              >
+                {loading ? '처리 중...' : '다음: 최종 확인'}
+              </button>
             </div>
           </div>
+        )}
 
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button
-              className="btn btn-primary"
-              onClick={handleSubmit}
-              disabled={loading}
-            >
-              {loading ? '처리 중...' : '제출'}
-            </button>
-            <button
-              className="btn btn-secondary"
-              onClick={handleCancel}
-              disabled={loading}
-            >
-              돌아가기
-            </button>
+        {stage === 'confirm' && checkSlotAvailability() && (
+          <div>
+            {/* 진행 단계 표시 */}
+            <div style={{ display: 'flex', gap: '20px', marginBottom: '32px', justifyContent: 'center' }}>
+              <div style={{ textAlign: 'center', opacity: 0.5 }}>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#666', marginBottom: '4px' }}>1</div>
+                <div style={{ fontSize: '12px', color: '#999' }}>날짜 선택</div>
+              </div>
+              <div style={{ color: '#ddd', fontSize: '20px' }}>→</div>
+              <div style={{ textAlign: 'center', opacity: 0.5 }}>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#666', marginBottom: '4px' }}>2</div>
+                <div style={{ fontSize: '12px', color: '#999' }}>시간 선택</div>
+              </div>
+              <div style={{ color: '#ddd', fontSize: '20px' }}>→</div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#007bff', marginBottom: '4px' }}>3</div>
+                <div style={{ fontSize: '12px', color: '#333' }}>확인</div>
+              </div>
+            </div>
+
+            <h3 style={{ marginBottom: '12px' }}>최종 확인</h3>
+            <p style={{ color: '#666', fontSize: '13px', marginBottom: '20px' }}>
+              다음과 같이 신청합니다. 제출하면 관리자가 확인 후 확정합니다.
+            </p>
+
+            <div style={{ marginBottom: '20px', padding: '16px', background: '#f9f9f9', borderRadius: '6px', border: '1px solid #ddd' }}>
+              <h4 style={{ marginTop: 0, marginBottom: '12px' }}>신청 일정 (우선순위 순)</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {selectedSlots.map((slotId, idx) => {
+                  const slot = slots[slotId];
+                  return (
+                    <div
+                      key={slotId}
+                      style={{
+                        padding: '12px',
+                        background: 'white',
+                        borderRadius: '4px',
+                        border: '2px solid #e7f3ff',
+                        fontSize: '14px',
+                      }}
+                    >
+                      <strong style={{ color: '#007bff' }}>{idx + 1}</strong> {slot?.date} {TIME_SLOTS.find(t => t.label === slot?.timeLabel)?.displayLabel}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                className="btn btn-primary"
+                onClick={handleSubmit}
+                disabled={loading}
+                style={{ flex: 1, padding: '12px', fontSize: '15px' }}
+              >
+                {loading ? '처리 중...' : '신청 제출'}
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={handleCancel}
+                disabled={loading}
+                style={{ padding: '12px 20px', fontSize: '14px' }}
+              >
+                뒤로
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {stage === 'view' && customerRequests.length > 0 && (
+        {stage === 'view' && customerRequests.length > 0 && (
         <div>
           {statusNotification && (
             <div
@@ -884,41 +922,62 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
         </div>
       )}
 
-      {stage === 'reselect' && customerRequests.length > 0 && (
-        <div>
-          <h3>예약 재선택</h3>
-          <p style={{ color: '#666', fontSize: '14px', marginBottom: '20px' }}>
-            이전 신청의 슬롯이 모두 마감되었습니다. 다시 선택해주세요.
-          </p>
+        {stage === 'reselect' && customerRequests.length > 0 && (
+          <div>
+            {/* 진행 단계 표시 */}
+            <div style={{ display: 'flex', gap: '20px', marginBottom: '32px', justifyContent: 'center' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#007bff', marginBottom: '4px' }}>1</div>
+                <div style={{ fontSize: '12px', color: '#333' }}>날짜 선택</div>
+              </div>
+              <div style={{ color: '#ddd', fontSize: '20px' }}>→</div>
+              <div style={{ textAlign: 'center', opacity: 0.5 }}>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#666', marginBottom: '4px' }}>2</div>
+                <div style={{ fontSize: '12px', color: '#999' }}>시간 선택</div>
+              </div>
+              <div style={{ color: '#ddd', fontSize: '20px' }}>→</div>
+              <div style={{ textAlign: 'center', opacity: 0.5 }}>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#666', marginBottom: '4px' }}>3</div>
+                <div style={{ fontSize: '12px', color: '#999' }}>확인</div>
+              </div>
+            </div>
 
-          <SlotSelectionUI
-            slots={slots}
-            selectedSlots={selectedSlots}
-            onToggle={handleSlotToggle}
-            maxSelect={3}
-          />
+            <h3 style={{ marginBottom: '12px' }}>예약 재선택</h3>
+            <p style={{ color: '#666', fontSize: '13px', marginBottom: '20px' }}>
+              이전 신청의 슬롯이 모두 마감되었습니다. 다시 선택해주세요.
+            </p>
 
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button
-              className="btn btn-primary"
-              onClick={handleReselect}
-              disabled={selectedSlots.length === 0 || loading}
-            >
-              {loading ? '처리 중...' : '재선택 제출'}
-            </button>
-            <button
-              className="btn btn-secondary"
-              onClick={() => {
-                setStage('view');
-                setSelectedSlots([]);
-              }}
-              disabled={loading}
-            >
-              돌아가기
-            </button>
+            <SlotSelectionUI
+              slots={slots}
+              selectedSlots={selectedSlots}
+              onToggle={handleSlotToggle}
+              maxSelect={3}
+            />
+
+            <div style={{ marginTop: '32px', display: 'flex', gap: '10px' }}>
+              <button
+                className="btn btn-primary"
+                onClick={handleReselect}
+                disabled={selectedSlots.length === 0 || loading}
+                style={{ flex: 1, padding: '12px', fontSize: '15px' }}
+              >
+                {loading ? '처리 중...' : '재선택 제출'}
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  setStage('view');
+                  setSelectedSlots([]);
+                }}
+                disabled={loading}
+                style={{ padding: '12px 20px', fontSize: '14px' }}
+              >
+                뒤로
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
