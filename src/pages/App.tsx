@@ -67,17 +67,24 @@ const BookingApp: React.FC = () => {
       client.auth.getSession().then(({ data, error }) => {
         if (!active) return;
         if (error) {
-          setSupabaseError(error.message);
+          // 세션 오류는 로그인 화면으로 자동 이동 (오류 표시 금지)
+          setSupabaseError('');
           setIsSupabaseLoggedIn(false);
           setIsAdminUser(false);
         } else {
           setIsSupabaseLoggedIn(Boolean(data.session?.user));
           setIsAdminUser(data.session?.user.app_metadata?.role === 'admin');
+          if (!data.session?.user) {
+            setSupabaseError('');
+          }
         }
         setLoading(false);
-      }).catch(error => {
+      }).catch(() => {
         if (!active) return;
-        setSupabaseError(String(error));
+        // 세션 조회 오류도 로그인 화면으로 이동
+        setSupabaseError('');
+        setIsSupabaseLoggedIn(false);
+        setIsAdminUser(false);
         setLoading(false);
       });
     } catch (error) {
@@ -89,12 +96,13 @@ const BookingApp: React.FC = () => {
 
   const handleLogout = async () => {
     try {
-      const result = await signOut();
-      if (result.error) throw new Error(result.error);
+      await signOut();
+      // 오류 없음 또는 세션 없음 - 모두 정상 처리
       setIsSupabaseLoggedIn(false);
       setIsAdminUser(false);
       setSupabaseError('');
     } catch (error) {
+      // 예상치 못한 오류만 표시
       setSupabaseError(`로그아웃 오류: ${String(error)}`);
     }
   };

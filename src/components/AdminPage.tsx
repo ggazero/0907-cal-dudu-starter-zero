@@ -174,6 +174,10 @@ export const AdminPage: React.FC<AdminPageProps> = ({ db, mode }) => {
     }
   };
 
+  // 두 모드 모두 created_at에 대응하는 createdAt 기준으로 최신 신청부터 표시합니다.
+  const sortedRequests = [...requests].sort(
+    (a, b) => new Date(b.request.createdAt).getTime() - new Date(a.request.createdAt).getTime()
+  );
   const currentRequest = selectedRequest ? requests.find(r => r.request.id === selectedRequest) : null;
 
   return (
@@ -204,7 +208,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ db, mode }) => {
           </div>
           <div style={{ flex: 1, overflowY: 'auto' }}>
             <ul className="list" style={{ margin: 0 }}>
-              {requests.map((item) => (
+              {sortedRequests.map((item) => (
                 <li
                   key={item.request.id}
                   onClick={() => {
@@ -279,8 +283,11 @@ export const AdminPage: React.FC<AdminPageProps> = ({ db, mode }) => {
                           }}
                         >
                           {idx + 1}. {slot?.date} {TIME_SLOTS.find(t => t.label === slot?.timeLabel)?.displayLabel}
-                          <span style={{ marginLeft: '6px', fontSize: '10px', color: slot?.status === 'available' ? '#28a745' : '#dc3545' }}>
-                            {slot?.status === 'available' ? '(가능)' : '(마감)'}
+                          <span style={{ marginLeft: '6px', fontSize: '10px', color: '#999' }}>
+                            {currentRequest.request.status === 'received' && '검토 중'}
+                            {currentRequest.request.status === 'needs_reselection' && '예약 불가'}
+                            {currentRequest.request.status === 'confirmed' && currentRequest.request.confirmedSlotId === c.slotId && '예약 확정'}
+                            {currentRequest.request.status === 'confirmed' && currentRequest.request.confirmedSlotId !== c.slotId && '미선택'}
                           </span>
                         </div>
                       );
@@ -333,7 +340,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ db, mode }) => {
           <h3>신청 목록 (총 {requests.length}건)</h3>
           <div style={{ maxHeight: '500px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px' }}>
             <ul className="list" style={{ margin: 0 }}>
-              {requests.map((item, idx) => (
+              {sortedRequests.map((item, idx) => (
                 <li
                   key={item.request.id}
                   onClick={() => {

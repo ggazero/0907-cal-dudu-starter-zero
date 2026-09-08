@@ -92,7 +92,23 @@ export async function signIn(email: string, password: string): Promise<{ error?:
 
 export async function signOut(): Promise<{ error?: string }> {
   const client = getSupabase();
+
+  // 현재 세션 존재 여부 확인
+  const { data: sessionData } = await client.auth.getSession();
+
+  // 세션이 없으면 이미 로그아웃된 상태
+  if (!sessionData.session) {
+    return { error: undefined }; // 오류 없음
+  }
+
+  // 세션이 있으면 로그아웃 실행
   const { error } = await client.auth.signOut();
+
+  // AuthSessionMissingError는 무시하고 성공으로 처리
+  if (error?.message?.includes('session')) {
+    return { error: undefined };
+  }
+
   return { error: error?.message };
 }
 
