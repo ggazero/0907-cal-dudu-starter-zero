@@ -36,6 +36,12 @@ tr:last-child > :last-child { border-bottom: 3px solid #d9534f; font-weight: 600
 .summary p { margin: 0; }
 .pain { background: #ffe8e8; border: 1px solid #d9534f; color: #852622; }
 .goal { background: #e8f5e9; border: 1px solid #b8d8bb; color: #2d5016; }
+/* 여섯 단계와 같은 폭으로 정렬하는 감정 곡선 */
+tr > td.emotion-cell { padding: 0; border-left: 0; background: white; color: #003d80; }
+.emotion-curve { position: relative; height: 180px; background: linear-gradient(to right, white 0%, white 83.333333%, #ffe8e8 83.333333%, #ffe8e8 100%); }
+.emotion-curve svg { display: block; width: 100%; height: 180px; }
+.emotion-label { position: absolute; top: var(--label-y); left: var(--step-x); transform: translateX(-50%); white-space: nowrap; font-size: 13px; font-weight: 600; }
+.emotion-label.pain-label { color: #852622; }
 @media (max-width: 700px) { body { padding: 20px 16px; } h1 { font-size: 24px; } .persona { align-items: flex-start; flex-direction: column; gap: 8px; } .summary { grid-template-columns: 1fr; } }
 @media print { @page { size: A3 landscape; margin: 12mm; } body { padding: 0; } nav { display: none; } .map-scroll { overflow: visible; } * { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
 </style>
@@ -62,7 +68,29 @@ tr:last-child > :last-child { border-bottom: 3px solid #d9534f; font-weight: 600
 <thead><tr><th scope="col">여정 단계</th><th scope="col"><span class="step">Step 1</span>서비스 진입</th><th scope="col"><span class="step">Step 2</span>일정 탐색</th><th scope="col"><span class="step">Step 3</span>상담 신청</th><th scope="col"><span class="step">Step 4</span>접수 후 대기</th><th scope="col"><span class="step">Step 5</span>결과 확인</th><th scope="col"><span class="step">Step 6</span>재선택 후 확정대기<span class="badge">핵심 Pain Point</span></th></tr></thead>
 <tbody><tr><th scope="row">사용자 행동</th><td>상담 예약 페이지 접속</td><td>가능한 날짜와 시간 확인</td><td>희망 시간 1~3개 선택 후 신청</td><td>관리자 처리를 기다림</td><td>확정 또는 재선택 상태 확인</td><td>다른 시간을 다시 선택해 신청한 후 앱에서 확정 여부를 반복 확인</td></tr>
 <tr><th scope="row">생각</th><td>"상담 가능한 시간이 있을까?"</td><td>"가능한 시간이 한눈에 보이네."</td><td>"이 중 하나는 되겠지."</td><td>"언제 확정되지?"</td><td>"확정됐나? 다시 골라야 하나?"</td><td>"다시 신청했는데 이번에는 언제 결과가 나오지?"</td></tr>
-<tr><th scope="row">감정</th><td>기대</td><td>안정</td><td>기대</td><td>기다림</td><td>불안</td><td>피로 / 불안</td></tr>
+<tr><th scope="row">감정</th><td colspan="6" class="emotion-cell">
+<div class="emotion-curve">
+<svg viewBox="0 0 1200 180" preserveAspectRatio="none" role="img" aria-labelledby="emotion-title emotion-desc">
+<title id="emotion-title">상담 예약 경험의 감정 변화</title>
+<desc id="emotion-desc">Step 1 기대와 Step 2 안정은 높은 위치, Step 3 기대는 조금 낮은 위치입니다. Step 4 기다림부터 하락해 Step 5 불안을 거쳐 Step 6 피로와 불안이 가장 낮아집니다. 마지막 구간은 핵심 Pain Point로 강조됩니다.</desc>
+<!-- 내부 점수 4, 4, 3.5, 2.5, 1.5, 0.5를 y = 146 - 28 × 점수로 매핑 -->
+<path d="M200 0V180 M400 0V180 M600 0V180 M800 0V180" stroke="#e0e6ec" fill="none" vector-effect="non-scaling-stroke" />
+<path d="M1000 0V180" stroke="#d9534f" stroke-width="2" vector-effect="non-scaling-stroke" />
+<path d="M100 34 L300 34 L500 48 L700 76 L900 104" stroke="#0066cc" stroke-width="3" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke" />
+<path d="M900 104 L1100 132" stroke="#d9534f" stroke-width="3" fill="none" vector-effect="non-scaling-stroke" />
+<g fill="#0066cc" stroke="white" stroke-width="2">
+<circle cx="100" cy="34" r="6" /><circle cx="300" cy="34" r="6" /><circle cx="500" cy="48" r="6" /><circle cx="700" cy="76" r="6" /><circle cx="900" cy="104" r="6" />
+</g>
+<circle cx="1100" cy="132" r="8" fill="#d9534f" stroke="white" stroke-width="2" />
+</svg>
+<span class="emotion-label" style="--step-x: 8.333333%; --label-y: 48px;">기대</span>
+<span class="emotion-label" style="--step-x: 25%; --label-y: 48px;">안정</span>
+<span class="emotion-label" style="--step-x: 41.666667%; --label-y: 62px;">기대</span>
+<span class="emotion-label" style="--step-x: 58.333333%; --label-y: 90px;">기다림</span>
+<span class="emotion-label" style="--step-x: 75%; --label-y: 118px;">불안</span>
+<span class="emotion-label pain-label" style="--step-x: 91.666667%; --label-y: 148px;">피로·불안</span>
+</div>
+</td></tr>
 <tr><th scope="row">Pain Point</th><td>—</td><td>—</td><td>접수와 확정의 차이를 명확히 이해해야 함</td><td>처리 시점을 알기 어려움</td><td>사용자가 직접 결과를 확인해야 함</td><td>확정 시점을 알 수 없어 반복 확인해야 하며 일정 조율이 어려움</td></tr>
 </tbody>
 </table>
