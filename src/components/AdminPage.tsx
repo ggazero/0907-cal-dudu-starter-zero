@@ -184,9 +184,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({ db, mode }) => {
           <a
             href="/local"
             className="btn btn-secondary"
-            style={{ padding: '8px 16px', fontSize: '14px', textDecoration: 'none', display: 'inline-block' }}
+            style={{ padding: '8px 12px', fontSize: '12px', fontWeight: '500', textDecoration: 'none', display: 'inline-block', border: '1px solid #ddd', borderRadius: '4px', background: 'white', color: '#333' }}
           >
-            ← 고객 페이지로 돌아가기
+            ← 고객 화면
           </a>
         )}
       </div>

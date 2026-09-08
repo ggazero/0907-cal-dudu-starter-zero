@@ -270,6 +270,7 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
   const [statusNotification, setStatusNotification] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [reselectDate, setReselectDate] = useState<string | null>(null);
+  const [isCreatingNewReservation, setIsCreatingNewReservation] = useState(false);
 
   const om = new OperationManager(db, mode);
 
@@ -315,9 +316,9 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
     loadData();
   }, [customerId, mode, supabaseReady]);
 
-  // view 단계에서 자동 갱신 (5초 간격)
+  // view 단계에서 자동 갱신 (5초 간격, 신규 예약 중이 아닐 때만)
   useEffect(() => {
-    if (stage !== 'view' || customerRequests.length === 0) return;
+    if (stage !== 'view' || customerRequests.length === 0 || isCreatingNewReservation) return;
 
     const interval = setInterval(async () => {
       const previousLatest = customerRequests[customerRequests.length - 1];
@@ -367,9 +368,9 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [stage, customerRequests, customerId, mode, om]);
+  }, [stage, customerRequests, customerId, mode, om, isCreatingNewReservation]);
 
-  const loadData = async () => {
+  const loadData = async (skipStageUpdate = false) => {
     try {
       setError('');
       setSuccess('');
@@ -397,17 +398,19 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
         const status = await om.getCustomerStatusSupabase(customerId);
         setCustomerRequests(status);
 
-        if (status.length === 0) {
-          setStage('select');
-          setSelectedSlots([]);
-        } else {
-          const latest = status[status.length - 1];
-          if (latest.request.status === 'needs_reselection') {
-            setStage('reselect');
-          } else if (latest.request.status === 'confirmed') {
-            setStage('view');
+        if (!skipStageUpdate) {
+          if (status.length === 0) {
+            setStage('select');
+            setSelectedSlots([]);
           } else {
-            setStage('view');
+            const latest = status[status.length - 1];
+            if (latest.request.status === 'needs_reselection') {
+              setStage('reselect');
+            } else if (latest.request.status === 'confirmed') {
+              setStage('view');
+            } else {
+              setStage('view');
+            }
           }
         }
       } else {
@@ -416,17 +419,19 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
         const status = om.getCustomerStatus(customerId);
         setCustomerRequests(status);
 
-        if (status.length === 0) {
-          setStage('select');
-          setSelectedSlots([]);
-        } else {
-          const latest = status[status.length - 1];
-          if (latest.request.status === 'needs_reselection') {
-            setStage('reselect');
-          } else if (latest.request.status === 'confirmed') {
-            setStage('view');
+        if (!skipStageUpdate) {
+          if (status.length === 0) {
+            setStage('select');
+            setSelectedSlots([]);
           } else {
-            setStage('view');
+            const latest = status[status.length - 1];
+            if (latest.request.status === 'needs_reselection') {
+              setStage('reselect');
+            } else if (latest.request.status === 'confirmed') {
+              setStage('view');
+            } else {
+              setStage('view');
+            }
           }
         }
       }
@@ -469,6 +474,7 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
         setSuccess('신청이 완료되었습니다!');
         setSelectedSlots([]);
         setSelectedDate(null);
+        setIsCreatingNewReservation(false);
         setStage('view');
         setTimeout(() => loadData(), 500);
       } else {
@@ -599,41 +605,86 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
       background: '#fafafa',
       overflow: 'hidden'
     }}>
-      {/* 헤더 정보 (압축된 utility header) */}
-      <div style={{ background: 'white', borderBottom: '1px solid #ddd', padding: '8px 20px', flexShrink: 0 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#999' }}>
-          <div style={{ fontWeight: '500' }}>
+      {/* 헤더 (고객 식별자 + 네비게이션) */}
+      <div style={{ background: 'white', borderBottom: '1px solid #ddd', padding: '12px 20px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {/* 왼쪽: 고객 식별자 */}
+          <div style={{ fontWeight: '500', fontSize: '12px', color: '#333' }}>
             {mode === 'local' ? `C${customerId.slice(-2)}` : `${customerEmail?.split('@')[0]}`}
           </div>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+
+          {/* 오른쪽: 네비게이션 버튼 */}
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
             {mode === 'local' && (
-              <button
-                onClick={() => {
-                  db.resetCustomerData(customerId);
-                  setSelectedSlots([]);
-                  setSelectedDate(null);
-                  setReselectDate(null);
-                  setInlineReselectSlots([]);
-                  setPriorityNotifySlots(new Set());
-                  setStage('select');
-                  setStatusNotification('');
-                  loadData();
-                }}
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedSlots([]);
+                    setSelectedDate(null);
+                    setReselectDate(null);
+                    setInlineReselectSlots([]);
+                    setStage('select');
+                    setIsCreatingNewReservation(true);
+                  }}
+                  className="btn btn-secondary"
+                  style={{
+                    padding: '8px 12px',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    textDecoration: 'none',
+                    display: 'inline-block',
+                    cursor: 'pointer',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    background: 'white',
+                    color: '#333'
+                  }}
+                >
+                  ＋ 신규 예약
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => window.location.href = '/admin'}
+                  className="btn btn-secondary"
+                  style={{
+                    padding: '8px 12px',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    textDecoration: 'none',
+                    display: 'inline-block',
+                    cursor: 'pointer',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    background: 'white',
+                    color: '#333'
+                  }}
+                >
+                  ⚙ 관리자
+                </button>
+              </>
+            )}
+
+            {mode === 'supabase' && (
+              <a
+                href="/"
+                className="btn btn-secondary"
                 style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#007bff',
-                  cursor: 'pointer',
-                  fontSize: '10px',
-                  textDecoration: 'underline',
-                  padding: '2px 4px'
+                  padding: '8px 12px',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  textDecoration: 'none',
+                  display: 'inline-block',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  background: 'white',
+                  color: '#333'
                 }}
               >
-                새 데모 시작
-              </button>
+                ← 돌아가기
+              </a>
             )}
-            <a href="/" style={{ color: '#999', textDecoration: 'none' }}>←</a>
-            {mode === 'local' && <a href="/admin" style={{ color: '#999', textDecoration: 'none' }}>admin</a>}
           </div>
         </div>
       </div>
@@ -856,26 +907,28 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
                   )}
                 </div>
 
-                <div style={{ marginBottom: '20px', padding: '16px', background: 'white', borderRadius: '6px', border: '1px solid #ddd' }}>
-                  <h4 style={{ marginTop: 0, marginBottom: '12px' }}>신청한 일정 (우선순위 순)</h4>
-                  <ul className="list">
-                    {latest.candidates.map((c, cidx) => {
-                      const slot = slots[c.slotId];
-                      const isAvailable = slot?.status === 'available';
-                      return (
-                        <li key={c.id} style={{ opacity: isAvailable ? 1 : 0.6 }}>
-                          <span>
-                            {cidx + 1}. {slot?.date} {TIME_SLOTS.find(t => t.label === slot?.timeLabel)?.displayLabel}
-                            {' '}
-                            <span style={{ marginLeft: '10px', fontSize: '12px', color: isAvailable ? '#28a745' : '#dc3545' }}>
-                              {isAvailable ? '(가능)' : '(마감)'}
+                {!isConfirmed && (
+                  <div style={{ marginBottom: '20px', padding: '16px', background: 'white', borderRadius: '6px', border: '1px solid #ddd' }}>
+                    <h4 style={{ marginTop: 0, marginBottom: '12px' }}>신청한 일정 (우선순위 순)</h4>
+                    <ul className="list">
+                      {latest.candidates.map((c, cidx) => {
+                        const slot = slots[c.slotId];
+                        const isAvailable = slot?.status === 'available';
+                        return (
+                          <li key={c.id} style={{ opacity: isAvailable ? 1 : 0.6 }}>
+                            <span>
+                              {cidx + 1}. {slot?.date} {TIME_SLOTS.find(t => t.label === slot?.timeLabel)?.displayLabel}
+                              {' '}
+                              <span style={{ marginLeft: '10px', fontSize: '12px', color: isAvailable ? '#28a745' : '#dc3545' }}>
+                                {isAvailable ? '(가능)' : '(마감)'}
+                              </span>
                             </span>
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
 
                 {isNeedsReselection && (
                   <div data-layout="2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
