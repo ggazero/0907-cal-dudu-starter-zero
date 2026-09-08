@@ -178,7 +178,18 @@ export const AdminPage: React.FC<AdminPageProps> = ({ db, mode }) => {
 
   return (
     <div className="admin-page">
-      <h2>어드민 패널</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <h2 style={{ margin: 0 }}>어드민 패널</h2>
+        {mode === 'local' && (
+          <a
+            href="/local"
+            className="btn btn-secondary"
+            style={{ padding: '8px 16px', fontSize: '14px', textDecoration: 'none', display: 'inline-block' }}
+          >
+            ← 고객 페이지로 돌아가기
+          </a>
+        )}
+      </div>
 
       {error && <div className="alert alert-error">{error}</div>}
       {success && <div className="alert alert-success">{success}</div>}

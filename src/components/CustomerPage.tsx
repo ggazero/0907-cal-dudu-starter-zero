@@ -136,15 +136,14 @@ const CalendarDateSelector: React.FC<{
   );
 };
 
-const SlotSelectionUI: React.FC<{
+const TimeSlotSelectionUI: React.FC<{
   slots: Record<string, Slot>;
   selectedSlots: string[];
   onToggle: (slotId: string) => void;
   maxSelect: number;
+  selectedDate: string | null;
   excludeSlots?: string[];
-}> = ({ slots, selectedSlots, onToggle, maxSelect, excludeSlots = [] }) => {
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-
+}> = ({ slots, selectedSlots, onToggle, maxSelect, selectedDate, excludeSlots = [] }) => {
   // 선택된 날짜의 슬롯들
   const timeSlotsForDate = selectedDate
     ? Object.entries(slots)
@@ -155,61 +154,65 @@ const SlotSelectionUI: React.FC<{
         })
     : [];
 
+  if (!selectedDate) {
+    return (
+      <div style={{ padding: '20px', background: '#f5f5f5', borderRadius: '6px', textAlign: 'center' }}>
+        <p style={{ color: '#666', fontSize: '14px', margin: 0 }}>
+          왼쪽 달력에서 날짜를 선택해주세요.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div>
-      <CalendarDateSelector
-        slots={slots}
-        selectedDate={selectedDate}
-        onDateSelect={setSelectedDate}
-        excludeSlots={excludeSlots}
-      />
+      <h4 style={{ marginBottom: '12px', fontSize: '13px', color: '#666' }}>선택한 날짜</h4>
+      <div style={{ marginBottom: '20px', padding: '12px', background: '#e3f2fd', borderRadius: '4px', fontSize: '14px', fontWeight: 'bold', color: '#0d47a1' }}>
+        {selectedDate}
+      </div>
 
-      {selectedDate && (
-        <div>
-          <h4 style={{ marginBottom: '16px' }}>2단계: 시간 선택 ({selectedDate})</h4>
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '24px', flexWrap: 'wrap' }}>
-            {timeSlotsForDate.map(([slotId, slot]) => {
-              const isSelected = selectedSlots.includes(slotId);
-              const isAvailable = slot.status === 'available';
-              const isExcluded = excludeSlots.includes(slotId);
-              const canSelect = isAvailable && !isExcluded && (!isSelected && selectedSlots.length < maxSelect);
+      <h4 style={{ marginBottom: '16px' }}>2단계: 시간 선택</h4>
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '24px', flexWrap: 'wrap' }}>
+        {timeSlotsForDate.map(([slotId, slot]) => {
+          const isSelected = selectedSlots.includes(slotId);
+          const isAvailable = slot.status === 'available';
+          const isExcluded = excludeSlots.includes(slotId);
+          const canSelect = isAvailable && !isExcluded && (!isSelected && selectedSlots.length < maxSelect);
 
-              return (
-                <div key={slotId} style={{ position: 'relative' }}>
-                  <button
-                    onClick={() => onToggle(slotId)}
-                    disabled={!canSelect}
-                    title={isExcluded ? '이전 신청에서 선택한 일정은 제외됩니다' : ''}
-                    style={{
-                      padding: '12px 16px',
-                      border: isSelected ? '2px solid #28a745' : isExcluded ? '2px solid #dc3545' : '1px solid #ddd',
-                      background: isSelected
-                        ? '#d4edda'
-                        : isExcluded
-                        ? '#fff5f5'
-                        : isAvailable
-                        ? 'white'
-                        : '#f5f5f5',
-                      cursor: canSelect ? 'pointer' : 'not-allowed',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                      color: isExcluded ? '#dc3545' : isAvailable ? '#333' : '#999',
-                    }}
-                  >
-                    {TIME_SLOTS.find(t => t.label === slot.timeLabel)?.displayLabel}
-                    {isSelected && ' ✓'}
-                  </button>
-                  {isExcluded && (
-                    <div style={{ fontSize: '10px', color: '#dc3545', marginTop: '4px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                      선택 불가
-                    </div>
-                  )}
+          return (
+            <div key={slotId} style={{ position: 'relative' }}>
+              <button
+                onClick={() => onToggle(slotId)}
+                disabled={!canSelect}
+                title={isExcluded ? '이전 신청에서 선택한 일정은 제외됩니다' : ''}
+                style={{
+                  padding: '12px 16px',
+                  border: isSelected ? '2px solid #28a745' : isExcluded ? '2px solid #dc3545' : '1px solid #ddd',
+                  background: isSelected
+                    ? '#d4edda'
+                    : isExcluded
+                    ? '#fff5f5'
+                    : isAvailable
+                    ? 'white'
+                    : '#f5f5f5',
+                  cursor: canSelect ? 'pointer' : 'not-allowed',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  color: isExcluded ? '#dc3545' : isAvailable ? '#333' : '#999',
+                }}
+              >
+                {TIME_SLOTS.find(t => t.label === slot.timeLabel)?.displayLabel}
+                {isSelected && ' ✓'}
+              </button>
+              {isExcluded && (
+                <div style={{ fontSize: '10px', color: '#dc3545', marginTop: '4px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                  선택 불가
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+              )}
+            </div>
+          );
+        })}
+      </div>
 
       <div style={{ marginBottom: '20px' }}>
         <h4 style={{ marginBottom: '12px' }}>선택한 슬롯 ({selectedSlots.length}/{maxSelect})</h4>
@@ -265,6 +268,8 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
   const [priorityNotifySlots, setPriorityNotifySlots] = useState<Set<string>>(new Set());
   const [expandNotify, setExpandNotify] = useState(false);
   const [statusNotification, setStatusNotification] = useState<string>('');
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [reselectDate, setReselectDate] = useState<string | null>(null);
 
   const om = new OperationManager(db, mode);
 
@@ -463,6 +468,7 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
       if (result.success) {
         setSuccess('신청이 완료되었습니다!');
         setSelectedSlots([]);
+        setSelectedDate(null);
         setStage('view');
         setTimeout(() => loadData(), 500);
       } else {
@@ -593,19 +599,41 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
       background: '#fafafa',
       overflow: 'hidden'
     }}>
-      {/* 헤더 정보 (축소) */}
-      <div style={{ background: 'white', borderBottom: '1px solid #ddd', padding: '12px 20px', flexShrink: 0 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#666' }}>
-          <div>
-            {mode === 'local' ? `고객: ${customerId}` : `로그인: ${customerEmail}`}
+      {/* 헤더 정보 (압축된 utility header) */}
+      <div style={{ background: 'white', borderBottom: '1px solid #ddd', padding: '8px 20px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#999' }}>
+          <div style={{ fontWeight: '500' }}>
+            {mode === 'local' ? `C${customerId.slice(-2)}` : `${customerEmail?.split('@')[0]}`}
           </div>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <a href="/" style={{ color: '#666', textDecoration: 'none' }}>← 돌아가기</a>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             {mode === 'local' && (
-              <>
-                <a href="/admin" style={{ color: '#666', textDecoration: 'none' }}>관리자</a>
-              </>
+              <button
+                onClick={() => {
+                  db.resetCustomerData(customerId);
+                  setSelectedSlots([]);
+                  setSelectedDate(null);
+                  setReselectDate(null);
+                  setInlineReselectSlots([]);
+                  setPriorityNotifySlots(new Set());
+                  setStage('select');
+                  setStatusNotification('');
+                  loadData();
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#007bff',
+                  cursor: 'pointer',
+                  fontSize: '10px',
+                  textDecoration: 'underline',
+                  padding: '2px 4px'
+                }}
+              >
+                새 데모 시작
+              </button>
             )}
+            <a href="/" style={{ color: '#999', textDecoration: 'none' }}>←</a>
+            {mode === 'local' && <a href="/admin" style={{ color: '#999', textDecoration: 'none' }}>admin</a>}
           </div>
         </div>
       </div>
@@ -615,14 +643,22 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: '24px 20px',
+          padding: '16px 20px',
           display: 'flex',
           flexDirection: 'column',
+          minHeight: 0,
         }}
       >
+        <style>{`
+          @media (max-width: 768px) {
+            .customer-page [data-layout="2col"] {
+              grid-template-columns: 1fr !important;
+            }
+          }
+        `}</style>
         <div
           style={{
-            maxWidth: '600px',
+            maxWidth: '1000px',
             margin: '0 auto',
             width: '100%',
           }}
@@ -633,109 +669,113 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
 
         {stage === 'select' && (
           <div>
-            {/* 진행 단계 표시 */}
-            <div style={{ display: 'flex', gap: '20px', marginBottom: '32px', justifyContent: 'center' }}>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#007bff', marginBottom: '4px' }}>1</div>
-                <div style={{ fontSize: '12px', color: '#333' }}>날짜 선택</div>
-              </div>
-              <div style={{ color: '#ddd', fontSize: '20px' }}>→</div>
-              <div style={{ textAlign: 'center', opacity: 0.5 }}>
-                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#666', marginBottom: '4px' }}>2</div>
-                <div style={{ fontSize: '12px', color: '#999' }}>시간 선택</div>
-              </div>
-              <div style={{ color: '#ddd', fontSize: '20px' }}>→</div>
-              <div style={{ textAlign: 'center', opacity: 0.5 }}>
-                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#666', marginBottom: '4px' }}>3</div>
-                <div style={{ fontSize: '12px', color: '#999' }}>확인</div>
-              </div>
+            {/* 진행 단계 (한 줄) */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', justifyContent: 'center', fontSize: '11px' }}>
+              <span style={{ color: '#007bff', fontWeight: 'bold' }}>1 날짜</span>
+              <span style={{ color: '#ddd' }}>→</span>
+              <span style={{ color: '#999', opacity: 0.5 }}>2 시간</span>
+              <span style={{ color: '#ddd' }}>→</span>
+              <span style={{ color: '#999', opacity: 0.5 }}>3 확인</span>
             </div>
 
-            <SlotSelectionUI
-              slots={slots}
-              selectedSlots={selectedSlots}
-              onToggle={handleSlotToggle}
-              maxSelect={3}
-            />
+            {/* 2열 레이아웃 */}
+            <div data-layout="2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', minHeight: 0 }}>
+              {/* 왼쪽: 달력만 */}
+              <div style={{ minWidth: 0, minHeight: 0, overflow: 'auto' }}>
+                <CalendarDateSelector
+                  slots={slots}
+                  selectedDate={selectedDate}
+                  onDateSelect={setSelectedDate}
+                  excludeSlots={[]}
+                />
+              </div>
 
-            <div style={{ marginTop: '32px', display: 'flex', gap: '10px' }}>
-              <button
-                className="btn btn-primary"
-                onClick={() => setStage('confirm')}
-                disabled={selectedSlots.length === 0 || loading}
-                style={{ flex: 1, padding: '12px', fontSize: '15px' }}
-              >
-                {loading ? '처리 중...' : '다음: 최종 확인'}
-              </button>
+              {/* 오른쪽: 시간 선택 + 선택 슬롯 + CTA */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', minHeight: 0 }}>
+                <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                  <TimeSlotSelectionUI
+                    slots={slots}
+                    selectedSlots={selectedSlots}
+                    onToggle={handleSlotToggle}
+                    maxSelect={3}
+                    selectedDate={selectedDate}
+                    excludeSlots={[]}
+                  />
+                </div>
+
+                {selectedDate && (
+                  <div style={{ display: 'flex', gap: '10px', paddingTop: '12px', flexShrink: 0 }}>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => setStage('confirm')}
+                      disabled={selectedSlots.length === 0 || loading}
+                      style={{ flex: 1, padding: '10px', fontSize: '14px' }}
+                    >
+                      {loading ? '처리 중...' : '다음'}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
 
         {stage === 'confirm' && checkSlotAvailability() && (
           <div>
-            {/* 진행 단계 표시 */}
-            <div style={{ display: 'flex', gap: '20px', marginBottom: '32px', justifyContent: 'center' }}>
-              <div style={{ textAlign: 'center', opacity: 0.5 }}>
-                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#666', marginBottom: '4px' }}>1</div>
-                <div style={{ fontSize: '12px', color: '#999' }}>날짜 선택</div>
-              </div>
-              <div style={{ color: '#ddd', fontSize: '20px' }}>→</div>
-              <div style={{ textAlign: 'center', opacity: 0.5 }}>
-                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#666', marginBottom: '4px' }}>2</div>
-                <div style={{ fontSize: '12px', color: '#999' }}>시간 선택</div>
-              </div>
-              <div style={{ color: '#ddd', fontSize: '20px' }}>→</div>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#007bff', marginBottom: '4px' }}>3</div>
-                <div style={{ fontSize: '12px', color: '#333' }}>확인</div>
-              </div>
+            {/* 진행 단계 (한 줄) */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', justifyContent: 'center', fontSize: '11px' }}>
+              <span style={{ color: '#999', opacity: 0.5 }}>1 날짜</span>
+              <span style={{ color: '#ddd' }}>→</span>
+              <span style={{ color: '#999', opacity: 0.5 }}>2 시간</span>
+              <span style={{ color: '#ddd' }}>→</span>
+              <span style={{ color: '#007bff', fontWeight: 'bold' }}>3 확인</span>
             </div>
 
-            <h3 style={{ marginBottom: '12px' }}>최종 확인</h3>
-            <p style={{ color: '#666', fontSize: '13px', marginBottom: '20px' }}>
-              다음과 같이 신청합니다. 제출하면 관리자가 확인 후 확정합니다.
-            </p>
-
-            <div style={{ marginBottom: '20px', padding: '16px', background: '#f9f9f9', borderRadius: '6px', border: '1px solid #ddd' }}>
-              <h4 style={{ marginTop: 0, marginBottom: '12px' }}>신청 일정 (우선순위 순)</h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {selectedSlots.map((slotId, idx) => {
-                  const slot = slots[slotId];
-                  return (
-                    <div
-                      key={slotId}
-                      style={{
-                        padding: '12px',
-                        background: 'white',
-                        borderRadius: '4px',
-                        border: '2px solid #e7f3ff',
-                        fontSize: '14px',
-                      }}
-                    >
-                      <strong style={{ color: '#007bff' }}>{idx + 1}</strong> {slot?.date} {TIME_SLOTS.find(t => t.label === slot?.timeLabel)?.displayLabel}
-                    </div>
-                  );
-                })}
+            {/* 2열 레이아웃 */}
+            <div data-layout="2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', height: 'calc(100% - 40px)' }}>
+              {/* 왼쪽: 안내 */}
+              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <h3 style={{ marginTop: 0, marginBottom: '12px' }}>최종 확인</h3>
+                <p style={{ color: '#666', fontSize: '13px' }}>
+                  다음과 같이 신청합니다.
+                </p>
               </div>
-            </div>
 
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                className="btn btn-primary"
-                onClick={handleSubmit}
-                disabled={loading}
-                style={{ flex: 1, padding: '12px', fontSize: '15px' }}
-              >
-                {loading ? '처리 중...' : '신청 제출'}
-              </button>
-              <button
-                className="btn btn-secondary"
-                onClick={handleCancel}
-                disabled={loading}
-                style={{ padding: '12px 20px', fontSize: '14px' }}
-              >
-                뒤로
-              </button>
+              {/* 오른쪽: 신청 일정 + CTA */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ padding: '12px', background: '#f9f9f9', borderRadius: '6px', border: '1px solid #ddd' }}>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: '13px' }}>신청 일정</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {selectedSlots.map((slotId, idx) => {
+                      const slot = slots[slotId];
+                      return (
+                        <div key={slotId} style={{ fontSize: '12px', padding: '6px 8px', background: 'white', borderRadius: '3px' }}>
+                          <strong style={{ color: '#007bff' }}>{idx + 1}</strong> {slot?.date} {TIME_SLOTS.find(t => t.label === slot?.timeLabel)?.displayLabel}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 'auto', display: 'flex', gap: '10px', paddingTop: '12px' }}>
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleSubmit}
+                    disabled={loading}
+                    style={{ flex: 1, padding: '10px', fontSize: '14px' }}
+                  >
+                    {loading ? '처리 중...' : '신청 제출'}
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    onClick={handleCancel}
+                    disabled={loading}
+                    style={{ padding: '10px 16px', fontSize: '14px' }}
+                  >
+                    뒤로
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -838,174 +878,170 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
                 </div>
 
                 {isNeedsReselection && (
-                  <div style={{ marginBottom: '20px', padding: '16px', background: '#fafafa', borderRadius: '6px', border: '1px solid #ddd' }}>
-                    <h4 style={{ marginTop: 0, marginBottom: '12px' }}>추천 가능 일정</h4>
-                    {(() => {
-                      const suggested = getSuggestedSlots();
-                      return (
-                        <div>
-                          <div style={{ marginBottom: '12px' }}>
-                            <p style={{ fontSize: '12px', color: '#666', margin: '0 0 12px 0' }}>아래에서 가능한 일정을 선택하고 재신청하세요</p>
-                            <div className="table-container">
-                              <table className="slots-table">
-                                <thead>
-                                  <tr>
-                                    <th></th>
-                                    <th>날짜</th>
-                                    <th>시간</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {suggested.map(slotId => {
-                                    const slot = slots[slotId];
-                                    const isSelected = inlineReselectSlots.includes(slotId);
+                  <div data-layout="2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                    {/* 왼쪽: 이전 신청 상태 */}
+                    <div>
+                      <h4 style={{ margin: '0 0 12px 0', fontSize: '13px' }}>이전 신청</h4>
+                      <div style={{ padding: '12px', background: '#fff8e1', borderRadius: '4px', border: '1px solid #ffa500', marginBottom: '12px' }}>
+                        <p style={{ margin: 0, fontSize: '12px', color: '#dc3545' }}>
+                          신청했던 일정이 모두 마감되었습니다.
+                        </p>
+                      </div>
+                      <ul className="list" style={{ fontSize: '12px' }}>
+                        {latest.candidates.map((c, idx) => {
+                          const slot = slots[c.slotId];
+                          return (
+                            <li key={c.id} style={{ opacity: 0.6, paddingLeft: '16px' }}>
+                              {idx + 1}. {slot?.date} {TIME_SLOTS.find(t => t.label === slot?.timeLabel)?.displayLabel}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+
+                    {/* 오른쪽: 추천 일정 + 알림 + CTA */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {(() => {
+                        const suggested = getSuggestedSlots();
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <div>
+                              <h4 style={{ margin: '0 0 8px 0', fontSize: '13px' }}>추천 일정</h4>
+                              <div className="table-container" style={{ fontSize: '12px', marginBottom: '8px' }}>
+                                <table className="slots-table">
+                                  <tbody>
+                                    {suggested.map(slotId => {
+                                      const slot = slots[slotId];
+                                      const isSelected = inlineReselectSlots.includes(slotId);
+                                      return (
+                                        <tr
+                                          key={slotId}
+                                          onClick={() => {
+                                            setInlineReselectSlots(prev => {
+                                              if (prev.includes(slotId)) {
+                                                return prev.filter(s => s !== slotId);
+                                              } else if (prev.length < 3) {
+                                                return [...prev, slotId];
+                                              }
+                                              return prev;
+                                            });
+                                          }}
+                                          style={{
+                                            cursor: 'pointer',
+                                            background: isSelected ? '#d4edda' : 'white',
+                                            borderColor: isSelected ? '#28a745' : 'inherit',
+                                          }}
+                                        >
+                                          <td style={{ textAlign: 'center', padding: '6px' }}>
+                                            <input
+                                              type="checkbox"
+                                              checked={isSelected}
+                                              onChange={() => {}}
+                                              style={{ cursor: 'pointer' }}
+                                            />
+                                          </td>
+                                          <td style={{ padding: '6px' }}>{slot?.date}</td>
+                                          <td style={{ padding: '6px' }}>{TIME_SLOTS.find(t => t.label === slot?.timeLabel)?.displayLabel}</td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                              <p style={{ fontSize: '11px', color: '#666', margin: 0 }}>
+                                선택됨: {inlineReselectSlots.length}/3
+                              </p>
+                            </div>
+
+                            {/* 알림 섹션 (접힘) */}
+                            <div>
+                              <button
+                                onClick={() => setExpandNotify(!expandNotify)}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  padding: 0,
+                                  cursor: 'pointer',
+                                  width: '100%',
+                                  textAlign: 'left',
+                                  marginBottom: '8px',
+                                }}
+                              >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <strong style={{ fontSize: '12px', color: '#666' }}>빈자리 알림</strong>
+                                  <span style={{ fontSize: '11px', color: '#999' }}>{expandNotify ? '▼' : '▶'}</span>
+                                </div>
+                              </button>
+                              {expandNotify && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                  {latest.candidates.map(c => {
+                                    const slot = slots[c.slotId];
+                                    const isPriorityNotified = priorityNotifySlots.has(c.slotId);
                                     return (
-                                      <tr
-                                        key={slotId}
-                                        onClick={() => {
-                                          setInlineReselectSlots(prev => {
-                                            if (prev.includes(slotId)) {
-                                              return prev.filter(s => s !== slotId);
-                                            } else if (prev.length < 3) {
-                                              return [...prev, slotId];
-                                            }
-                                            return prev;
-                                          });
-                                        }}
+                                      <div
+                                        key={c.slotId}
                                         style={{
-                                          cursor: 'pointer',
-                                          background: isSelected ? '#d4edda' : 'white',
-                                          borderColor: isSelected ? '#28a745' : 'inherit',
+                                          padding: '8px',
+                                          background: isPriorityNotified ? '#fff8e1' : '#f9f9f9',
+                                          borderRadius: '3px',
+                                          border: isPriorityNotified ? '1px solid #ffa500' : '1px solid #ddd',
+                                          fontSize: '11px',
                                         }}
                                       >
-                                        <td style={{ textAlign: 'center' }}>
-                                          <input
-                                            type="checkbox"
-                                            checked={isSelected}
-                                            onChange={() => {}}
-                                            style={{ cursor: 'pointer' }}
-                                          />
-                                        </td>
-                                        <td>{slot?.date}</td>
-                                        <td>{TIME_SLOTS.find(t => t.label === slot?.timeLabel)?.displayLabel}</td>
-                                      </tr>
+                                        {isPriorityNotified ? (
+                                          <div>
+                                            <div style={{ color: '#ffa500', fontWeight: 'bold', marginBottom: '2px' }}>🔔 우선 알림 대상</div>
+                                            <div style={{ color: '#666' }}>{slot?.date} {TIME_SLOTS.find(t => t.label === slot?.timeLabel)?.displayLabel}</div>
+                                          </div>
+                                        ) : (
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                                            <span style={{ color: '#333' }}>
+                                              {slot?.date} {TIME_SLOTS.find(t => t.label === slot?.timeLabel)?.displayLabel}
+                                            </span>
+                                            <button
+                                              className="btn btn-secondary"
+                                              onClick={() => {
+                                                setPriorityNotifySlots(prev => new Set([...prev, c.slotId]));
+                                              }}
+                                              style={{ padding: '2px 6px', fontSize: '10px', whiteSpace: 'nowrap', flexShrink: 0 }}
+                                            >
+                                              🔔 신청
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
                                     );
                                   })}
-                                </tbody>
-                              </table>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* CTA */}
+                            <div style={{ marginTop: 'auto', display: 'flex', gap: '8px', paddingTop: '8px' }}>
+                              <button
+                                className="btn btn-primary"
+                                onClick={handleInlineReselectSubmit}
+                                disabled={inlineReselectSlots.length === 0 || loading}
+                                style={{ flex: 1, padding: '8px', fontSize: '12px' }}
+                              >
+                                {loading ? '처리 중...' : '재신청'}
+                              </button>
+                              <button
+                                className="btn btn-secondary"
+                                onClick={() => {
+                                  setInlineReselectSlots([]);
+                                  setStage('reselect');
+                                }}
+                                disabled={loading}
+                                style={{ flex: 1, padding: '8px', fontSize: '12px' }}
+                              >
+                                모든 일정
+                              </button>
                             </div>
                           </div>
-
-                          <div style={{ marginBottom: '12px', padding: '12px', background: '#f0f0f0', borderRadius: '4px' }}>
-                            <p style={{ margin: 0, fontSize: '12px', color: '#666' }}>
-                              선택됨: {inlineReselectSlots.length}/3
-                            </p>
-                          </div>
-
-                          <div style={{ display: 'flex', gap: '10px' }}>
-                            <button
-                              className="btn btn-primary"
-                              onClick={handleInlineReselectSubmit}
-                              disabled={inlineReselectSlots.length === 0 || loading}
-                              style={{ flex: 1 }}
-                            >
-                              {loading ? '처리 중...' : '선택한 일정으로 재신청'}
-                            </button>
-                            <button
-                              className="btn btn-secondary"
-                              onClick={() => {
-                                setInlineReselectSlots([]);
-                                setStage('reselect');
-                              }}
-                              disabled={loading}
-                            >
-                              모든 일정 보기
-                            </button>
-                          </div>
-
-                          {/* 빈자리 알림 */}
-                          <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #ddd' }}>
-                            <button
-                              onClick={() => setExpandNotify(!expandNotify)}
-                              style={{
-                                background: 'none',
-                                border: 'none',
-                                padding: 0,
-                                cursor: 'pointer',
-                                width: '100%',
-                                textAlign: 'left',
-                                marginBottom: '12px',
-                              }}
-                            >
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div>
-                                  <strong style={{ fontSize: '13px', color: '#666' }}>원하는 일정이 없나요?</strong>
-                                </div>
-                                <span style={{ fontSize: '12px', color: '#999' }}>{expandNotify ? '▼' : '▶'}</span>
-                              </div>
-                            </button>
-                            {expandNotify && (
-                              <div>
-                                <p style={{ fontSize: '12px', color: '#999', marginBottom: '12px' }}>
-                                  신청했던 일정이 다시 가능해지면 알려드릴게요.
-                                </p>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                              {latest.candidates.map(c => {
-                                const slot = slots[c.slotId];
-                                const isPriorityNotified = priorityNotifySlots.has(c.slotId);
-                                return (
-                                  <div
-                                    key={c.slotId}
-                                    style={{
-                                      padding: '12px',
-                                      background: isPriorityNotified ? '#fff8e1' : '#f9f9f9',
-                                      borderRadius: '4px',
-                                      border: isPriorityNotified ? '1px solid #ffa500' : '1px solid #ddd',
-                                      display: 'flex',
-                                      justifyContent: 'space-between',
-                                      alignItems: 'flex-start',
-                                    }}
-                                  >
-                                    <div style={{ flex: 1 }}>
-                                      {isPriorityNotified ? (
-                                        <div>
-                                          <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#ffa500', marginBottom: '4px' }}>
-                                            🔔 우선 알림 대상
-                                          </div>
-                                          <div style={{ fontSize: '12px', color: '#666', marginBottom: '6px' }}>
-                                            {slot?.date} {TIME_SLOTS.find(t => t.label === slot?.timeLabel)?.displayLabel}
-                                          </div>
-                                          <div style={{ fontSize: '11px', color: '#999', fontStyle: 'italic' }}>
-                                            이전 예약이 불가했던 고객으로, 빈자리가 생기면 먼저 안내받습니다.
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        <div style={{ fontSize: '13px', color: '#333' }}>
-                                          {slot?.date} {TIME_SLOTS.find(t => t.label === slot?.timeLabel)?.displayLabel}
-                                        </div>
-                                      )}
-                                    </div>
-                                    {!isPriorityNotified && (
-                                      <button
-                                        className="btn btn-secondary"
-                                        onClick={() => {
-                                          setPriorityNotifySlots(prev => new Set([...prev, c.slotId]));
-                                        }}
-                                        style={{ padding: '6px 12px', fontSize: '12px', marginLeft: '10px', whiteSpace: 'nowrap', flexShrink: 0 }}
-                                      >
-                                        🔔 알림 신청
-                                      </button>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })()}
+                        );
+                      })()}
+                    </div>
                   </div>
                 )}
 
@@ -1068,57 +1104,65 @@ export const CustomerPage: React.FC<CustomerPageProps> = ({ db, mode }) => {
 
               return (
                 <div>
-                  {/* 진행 단계 표시 */}
-                  <div style={{ display: 'flex', gap: '20px', marginBottom: '32px', justifyContent: 'center' }}>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#007bff', marginBottom: '4px' }}>1</div>
-                      <div style={{ fontSize: '12px', color: '#333' }}>날짜 선택</div>
-                    </div>
-                    <div style={{ color: '#ddd', fontSize: '20px' }}>→</div>
-                    <div style={{ textAlign: 'center', opacity: 0.5 }}>
-                      <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#666', marginBottom: '4px' }}>2</div>
-                      <div style={{ fontSize: '12px', color: '#999' }}>시간 선택</div>
-                    </div>
-                    <div style={{ color: '#ddd', fontSize: '20px' }}>→</div>
-                    <div style={{ textAlign: 'center', opacity: 0.5 }}>
-                      <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#666', marginBottom: '4px' }}>3</div>
-                      <div style={{ fontSize: '12px', color: '#999' }}>확인</div>
-                    </div>
+                  {/* 진행 단계 (한 줄) */}
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', justifyContent: 'center', fontSize: '11px' }}>
+                    <span style={{ color: '#007bff', fontWeight: 'bold' }}>1 날짜</span>
+                    <span style={{ color: '#ddd' }}>→</span>
+                    <span style={{ color: '#999', opacity: 0.5 }}>2 시간</span>
+                    <span style={{ color: '#ddd' }}>→</span>
+                    <span style={{ color: '#999', opacity: 0.5 }}>3 확인</span>
                   </div>
 
-                  <h3 style={{ marginBottom: '12px' }}>예약 재선택</h3>
-                  <p style={{ color: '#666', fontSize: '13px', marginBottom: '20px' }}>
-                    이전 신청의 슬롯이 모두 마감되었습니다. 다시 선택해주세요.
-                  </p>
+                  {/* 2열 레이아웃 */}
+                  <div data-layout="2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', minHeight: 0 }}>
+                    {/* 왼쪽: 달력만 */}
+                    <div style={{ minWidth: 0, minHeight: 0, overflow: 'auto' }}>
+                      <CalendarDateSelector
+                        slots={slots}
+                        selectedDate={reselectDate}
+                        onDateSelect={setReselectDate}
+                        excludeSlots={previousCandidates}
+                      />
+                    </div>
 
-                  <SlotSelectionUI
-                    slots={slots}
-                    selectedSlots={selectedSlots}
-                    onToggle={handleSlotToggle}
-                    maxSelect={3}
-                    excludeSlots={previousCandidates}
-                  />
+                    {/* 오른쪽: 시간 선택 + 선택 슬롯 + CTA */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', minHeight: 0 }}>
+                      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                        <TimeSlotSelectionUI
+                          slots={slots}
+                          selectedSlots={selectedSlots}
+                          onToggle={handleSlotToggle}
+                          maxSelect={3}
+                          selectedDate={reselectDate}
+                          excludeSlots={previousCandidates}
+                        />
+                      </div>
 
-                  <div style={{ marginTop: '32px', display: 'flex', gap: '10px' }}>
-                    <button
-                      className="btn btn-primary"
-                      onClick={handleReselect}
-                      disabled={selectedSlots.length === 0 || loading}
-                      style={{ flex: 1, padding: '12px', fontSize: '15px' }}
-                    >
-                      {loading ? '처리 중...' : '재선택 제출'}
-                    </button>
-                    <button
-                      className="btn btn-secondary"
-                      onClick={() => {
-                        setStage('view');
-                        setSelectedSlots([]);
-                      }}
-                      disabled={loading}
-                      style={{ padding: '12px 20px', fontSize: '14px' }}
-                    >
-                      뒤로
-                    </button>
+                      {reselectDate && (
+                        <div style={{ display: 'flex', gap: '10px', paddingTop: '12px', flexShrink: 0 }}>
+                          <button
+                            className="btn btn-primary"
+                            onClick={handleReselect}
+                            disabled={selectedSlots.length === 0 || loading}
+                            style={{ flex: 1, padding: '10px', fontSize: '14px' }}
+                          >
+                            {loading ? '처리 중...' : '재신청'}
+                          </button>
+                          <button
+                            className="btn btn-secondary"
+                            onClick={() => {
+                              setStage('view');
+                              setSelectedSlots([]);
+                              setReselectDate(null);
+                            }}
+                            disabled={loading}
+                            style={{ padding: '10px 16px', fontSize: '14px' }}
+                          >
+                            뒤로
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               );

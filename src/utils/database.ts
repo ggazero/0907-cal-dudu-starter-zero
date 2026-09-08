@@ -233,6 +233,41 @@ export class DatabaseManager {
     this.saveToLocalStorage();
   }
 
+  // 특정 고객의 모든 요청/후보 제거 (슬롯 상태 복원)
+  resetCustomerData(customerId: string): void {
+    const current = this.getCurrent();
+
+    // 해당 고객의 모든 요청 찾기
+    const requestIds = current.requests
+      .filter(r => r.customerId === customerId)
+      .map(r => r.id);
+
+    // 해당 요청들의 후보 제거
+    current.candidates = current.candidates.filter(c => !requestIds.includes(c.requestId));
+
+    // 해당 요청들을 확정되지 않은 것만 제거 (confirmed는 유지)
+    current.requests = current.requests.filter(r => r.customerId !== customerId || r.status === 'confirmed');
+
+    // 해당 요청들이 사용했던 슬롯 상태를 'available'로 복원
+    requestIds.forEach(requestId => {
+      const candidates = current.candidates.filter(c => c.requestId === requestId);
+      candidates.forEach(c => {
+        const slot = current.slots[c.slotId];
+        if (slot && slot.status === 'confirmed' && slot.confirmedBy) {
+          // 슬롯이 다른 고객에 의해 확정되었으면 변경 안함
+          return;
+        }
+        if (slot) {
+          slot.status = 'available';
+          delete slot.confirmedAt;
+          delete slot.confirmedBy;
+        }
+      });
+    });
+
+    this.saveToLocalStorage();
+  }
+
   // 현재 상태 export
   getState(): LocalDatabase {
     return this.getCurrent();
